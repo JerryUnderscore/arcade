@@ -40,3 +40,24 @@ export const writeNumber = (key: string, value: number): void => {
 
   window.localStorage.setItem(key, String(value));
 };
+
+export const readJson = <T>(key: string, fallback: T): T => {
+  const raw = readStorage(key);
+  if (raw === null) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+};
+
+export const writeJson = <T>(key: string, value: T): void => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(key, JSON.stringify(value));
+};

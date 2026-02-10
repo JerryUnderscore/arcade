@@ -1,13 +1,17 @@
+import type { GameDefinition, GameId } from "../games/registry";
+
 type HubProps = {
-  onStartGame: () => void;
-  highScore: number;
+  games: readonly GameDefinition[];
+  highScores: Record<GameId, number>;
+  onStartGame: (gameId: GameId) => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
 };
 
 export const Hub = ({
+  games,
+  highScores,
   onStartGame,
-  highScore,
   soundEnabled,
   onToggleSound,
 }: HubProps) => {
@@ -23,26 +27,30 @@ export const Hub = ({
       </header>
 
       <section className="hub-grid" aria-label="Available games">
-        <article className="game-card">
-          <div className="game-card__meta">
-            <p className="game-card__label">Game 01</p>
-            <h2>Neon Dodger</h2>
-            <p className="game-card__description">
-              Survive the falling hazard field. Controls: arrows/A-D + touch.
-            </p>
-          </div>
-          <div className="game-card__stats">
-            <p>
-              High Score <strong>{highScore}</strong>
-            </p>
-            <button type="button" className="ghost" onClick={onToggleSound}>
-              Sound: {soundEnabled ? "On" : "Off"}
+        {games.map((game) => (
+          <article key={game.id} className="game-card">
+            <div className="game-card__meta">
+              <p className="game-card__label">{game.label}</p>
+              <h2>{game.title}</h2>
+              <p className="game-card__description">{game.description}</p>
+            </div>
+            <div className="game-card__stats">
+              <p>
+                High Score <strong>{highScores[game.id]}</strong>
+              </p>
+              <button type="button" className="ghost" onClick={onToggleSound}>
+                Sound: {soundEnabled ? "On" : "Off"}
+              </button>
+            </div>
+            <button
+              type="button"
+              className="cta"
+              onClick={() => onStartGame(game.id)}
+            >
+              {game.ctaLabel}
             </button>
-          </div>
-          <button type="button" className="cta" onClick={onStartGame}>
-            Play Neon Dodger
-          </button>
-        </article>
+          </article>
+        ))}
       </section>
     </main>
   );

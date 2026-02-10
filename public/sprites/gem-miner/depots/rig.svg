@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9b78ff"/>
+      <stop offset="1" stop-color="#3a1f7a"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e7eef3"/>
+      <stop offset="1" stop-color="#7c8790"/>
+    </linearGradient>
+  </defs>
+
+  <!-- tile -->
+  <rect width="64" height="64" rx="8" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="7" fill="none" stroke="#1a0e38" stroke-width="2" opacity="0.55"/>
+  <path d="M8 10h48" stroke="#ffffff" stroke-width="2" opacity="0.14"/>
+
+  <!-- platform -->
+  <rect x="10" y="48" width="44" height="10" rx="5" fill="#1b232a" stroke="#0a0f13" stroke-width="2" opacity="0.95"/>
+  <g opacity="0.25" fill="#8aa0ad">
+    <rect x="16" y="51" width="4" height="4" rx="1"/>
+    <rect x="26" y="51" width="4" height="4" rx="1"/>
+    <rect x="36" y="51" width="4" height="4" rx="1"/>
+    <rect x="46" y="51" width="4" height="4" rx="1"/>
+  </g>
+
+  <!-- rig tower -->
+  <path d="M30 14 L34 14 L46 48 L18 48 Z" fill="url(#metal)" stroke="#2b333a" stroke-width="2" />
+  <path d="M26 20 L38 20" stroke="#2b333a" stroke-width="2" opacity="0.8"/>
+  <path d="M24 28 L40 28" stroke="#2b333a" stroke-width="2" opacity="0.8"/>
+  <path d="M22 36 L42 36" stroke="#2b333a" stroke-width="2" opacity="0.8"/>
+
+  <!-- inner braces -->
+  <g stroke="#2b333a" stroke-width="2" opacity="0.55">
+    <path d="M22 48 L34 14"/>
+    <path d="M42 48 L30 14"/>
+    <path d="M26 20 L38 28"/>
+    <path d="M38 20 L26 28"/>
+    <path d="M24 28 L40 36"/>
+    <path d="M40 28 L24 36"/>
+  </g>
+
+  <!-- hook / winch -->
+  <rect x="28" y="10" width="8" height="6" rx="2" fill="#0b1e24" opacity="0.85"/>
+  <path d="M32 16v6" stroke="#0b1e24" stroke-width="2" stroke-linecap="round"/>
+  <path d="M30 22c0 3 4 3 4 0" fill="none" stroke="#0b1e24" stroke-width="2" stroke-linecap="round"/>
+</svg>

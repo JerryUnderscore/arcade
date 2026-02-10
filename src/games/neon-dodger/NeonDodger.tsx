@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-
-type NeonDodgerProps = {
-  onExit: () => void;
-  highScore: number;
-  onHighScore: (nextScore: number) => void;
-  soundEnabled: boolean;
-  onToggleSound: () => void;
-};
+import type { GameProps } from "../types";
 
 type Obstacle = {
   x: number;
@@ -59,7 +52,7 @@ export const NeonDodger = ({
   onHighScore,
   soundEnabled,
   onToggleSound,
-}: NeonDodgerProps) => {
+}: GameProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animationRef = useRef<number | null>(null);
   const keysRef = useRef<Set<string>>(new Set());

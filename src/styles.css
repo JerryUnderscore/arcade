@@ -202,6 +202,14 @@ button {
   touch-action: none;
 }
 
+.tetris-canvas {
+  width: min(100%, 380px);
+}
+
+.miner-canvas {
+  width: min(100%, 640px);
+}
+
 .game-hud {
   display: flex;
   flex-wrap: wrap;
@@ -238,6 +246,135 @@ button {
   gap: 0.6rem;
 }
 
+.touch-controls {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: min(100%, 680px);
+}
+
+.profile-switcher {
+  width: min(100%, 760px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.profile-switcher p {
+  margin: 0;
+  color: rgba(235, 249, 255, 0.86);
+  font-size: 0.92rem;
+}
+
+.profile-note {
+  font-size: 0.82rem;
+  color: rgba(188, 222, 238, 0.8);
+}
+
+.profile-pill {
+  min-width: 2.4rem;
+  padding-inline: 0.8rem;
+}
+
+.profile-pill.is-active {
+  background: linear-gradient(110deg, #51f4ff 0%, #2d96b7 100%);
+  color: #03212d;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.status-line {
+  margin: 0;
+  color: rgba(232, 247, 255, 0.86);
+  text-align: center;
+}
+
+.depot-hint {
+  margin: 0;
+  text-align: center;
+  color: rgba(190, 223, 239, 0.82);
+  font-size: 0.9rem;
+}
+
+.upgrade-grid {
+  width: min(100%, 760px);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.55rem;
+}
+
+.upgrade-button {
+  text-align: left;
+}
+
+.depot-panel {
+  width: min(100%, 760px);
+  border: 1px solid rgba(112, 223, 255, 0.24);
+  border-radius: 14px;
+  background: rgba(7, 18, 29, 0.86);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.depot-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 12, 18, 0.62);
+  backdrop-filter: blur(2px);
+  display: grid;
+  place-items: center;
+  padding: 0.9rem;
+  z-index: 7;
+}
+
+.depot-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.depot-panel__header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.depot-panel__content {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.depot-panel__content p {
+  margin: 0;
+}
+
+.sell-table {
+  border: 1px solid rgba(151, 216, 243, 0.22);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sell-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 0.7fr 0.9fr;
+  gap: 0.6rem;
+  padding: 0.42rem 0.56rem;
+  font-size: 0.9rem;
+}
+
+.sell-row--head {
+  background: rgba(116, 208, 243, 0.12);
+  font-weight: 700;
+}
+
+.sell-row--foot {
+  background: rgba(116, 208, 243, 0.08);
+  font-weight: 600;
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -272,5 +409,15 @@ button {
   .cta {
     padding: 0.56rem 0.74rem;
     font-size: 0.92rem;
+  }
+
+  .touch-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .sell-row {
+    grid-template-columns: 1fr 0.8fr 0.6fr 0.8fr;
+    gap: 0.4rem;
+    font-size: 0.82rem;
   }
 }

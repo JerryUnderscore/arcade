@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6b4328"/>
+      <stop offset="1" stop-color="#53311c"/>
+    </linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a2f34"/>
+      <stop offset="1" stop-color="#0f1215"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="6" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="5" fill="none" stroke="#3b2315" stroke-width="2" opacity="0.5"/>
+
+  <!-- coal chunk -->
+  <path d="M14 40 L18 22 L34 14 L50 22 L54 38 L44 52 L24 54 Z" fill="url(#c)"/>
+  <path d="M18 24 L34 18 L48 24 L40 30 L26 30 Z" fill="#3b434a" opacity="0.6"/>
+  <path d="M22 38 L30 34 L40 36 L34 44 L24 44 Z" fill="#1d2227" opacity="0.65"/>
+
+  <!-- shine -->
+  <path d="M22 22 L34 18" stroke="#b7c6d4" stroke-width="3" opacity="0.18" stroke-linecap="round"/>
+  <path d="M24 44 L34 44" stroke="#b7c6d4" stroke-width="3" opacity="0.10" stroke-linecap="round"/>
+</svg>

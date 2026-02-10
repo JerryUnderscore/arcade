@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6f7f8a"/>
+      <stop offset="1" stop-color="#3d4a54"/>
+    </linearGradient>
+    <linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff4d6d"/>
+      <stop offset="1" stop-color="#7a0f24"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="6" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="5" fill="none" stroke="#1c242b" stroke-width="2" opacity="0.55"/>
+
+  <!-- rock base -->
+  <path d="M8 22 L22 10 L46 12 L58 28 L54 50 L34 58 L12 50 Z" fill="#2f3a43" opacity="0.55"/>
+
+  <!-- ruby crystal -->
+  <path d="M32 14 L46 26 L40 48 L32 54 L24 48 L18 26 Z" fill="url(#gem)"/>
+  <path d="M32 14 L40 26 L32 54 L24 26 Z" fill="#ff6b86" opacity="0.45"/>
+  <path d="M18 26 L32 14 L24 26 Z" fill="#ffd1da" opacity="0.25"/>
+  <path d="M46 26 L32 14 L40 26 Z" fill="#ffd1da" opacity="0.18"/>
+  <path d="M24 48 L32 54 L40 48 L32 46 Z" fill="#530a17" opacity="0.35"/>
+
+  <!-- highlight -->
+  <path d="M26 26 L30 22" stroke="#ffffff" stroke-width="3" opacity="0.22" stroke-linecap="round"/>
+</svg>

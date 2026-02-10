@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="d" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7b4a2b"/>
+      <stop offset="1" stop-color="#5c351e"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="6" fill="url(#d)"/>
+  <rect x="2" y="2" width="60" height="60" rx="5" fill="none" stroke="#3b2315" stroke-width="2" opacity="0.55"/>
+
+  <!-- clumps -->
+  <g opacity="0.45">
+    <rect x="10" y="10" width="14" height="10" rx="2" fill="#8a5632"/>
+    <rect x="34" y="12" width="18" height="12" rx="2" fill="#8a5632"/>
+    <rect x="14" y="30" width="18" height="12" rx="2" fill="#8a5632"/>
+    <rect x="38" y="36" width="16" height="10" rx="2" fill="#8a5632"/>
+    <rect x="8" y="46" width="20" height="12" rx="2" fill="#8a5632"/>
+  </g>
+
+  <!-- pebbles -->
+  <g opacity="0.6" fill="#3e2719">
+    <rect x="26" y="20" width="3" height="3" rx="1"/>
+    <rect x="30" y="44" width="3" height="3" rx="1"/>
+    <rect x="48" y="28" width="3" height="3" rx="1"/>
+    <rect x="18" y="40" width="3" height="3" rx="1"/>
+    <rect x="44" y="50" width="3" height="3" rx="1"/>
+  </g>
+
+  <!-- highlight edge -->
+  <path d="M8 8h48" stroke="#c99b6c" stroke-width="2" opacity="0.18"/>
+</svg>

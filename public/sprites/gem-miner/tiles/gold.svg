@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6f7f8a"/>
+      <stop offset="1" stop-color="#3d4a54"/>
+    </linearGradient>
+    <linearGradient id="ore" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe37a"/>
+      <stop offset="1" stop-color="#c8861a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="6" fill="url(#bg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="5" fill="none" stroke="#1c242b" stroke-width="2" opacity="0.55"/>
+
+  <path d="M8 22 L22 10 L46 12 L58 28 L54 50 L34 58 L12 50 Z" fill="#2f3a43" opacity="0.55"/>
+
+  <g fill="url(#ore)">
+    <path d="M14 30 L24 22 L36 26 L26 36 Z"/>
+    <path d="M34 18 L48 22 L50 34 L38 30 Z"/>
+    <path d="M18 44 L30 38 L40 46 L26 52 Z"/>
+    <path d="M40 40 L54 40 L50 52 L38 52 Z"/>
+  </g>
+
+  <!-- sparkle glints -->
+  <g opacity="0.6" stroke="#fff6c8" stroke-width="2" stroke-linecap="round">
+    <path d="M24 26 L24 30"/>
+    <path d="M22 28 L26 28"/>
+    <path d="M46 28 L46 32"/>
+    <path d="M44 30 L48 30"/>
+  </g>
+</svg>

@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
 import { Hub } from "./components/Hub";
-import { NeonDodger } from "./games/neon-dodger/NeonDodger";
+import { GAME_BY_ID, GAME_DEFINITIONS, type GameId } from "./games/registry";
 import { readBoolean, readNumber, writeBoolean, writeNumber } from "./lib/storage";
 
-type GameId = "neon-dodger";
-
 const SOUND_KEY = "arcade:sound";
-const HIGH_SCORE_KEY = "arcade:neon-dodger:high-score";
+
+const createInitialHighScores = (): Record<GameId, number> =>
+  GAME_DEFINITIONS.reduce(
+    (accumulator, game) => ({ ...accumulator, [game.id]: 0 }),
+    {} as Record<GameId, number>,
+  );
 
 export const App = () => {
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [highScore, setHighScore] = useState(0);
+  const [highScores, setHighScores] = useState<Record<GameId, number>>(() =>
+    createInitialHighScores(),
+  );
 
   useEffect(() => {
     setSoundEnabled(readBoolean(SOUND_KEY, true));
-    setHighScore(readNumber(HIGH_SCORE_KEY, 0));
+
+    setHighScores(() => {
+      const nextScores = createInitialHighScores();
+      for (const game of GAME_DEFINITIONS) {
+        nextScores[game.id] = readNumber(game.highScoreKey, 0);
+      }
+      return nextScores;
+    });
   }, []);
 
   const toggleSound = () => {
@@ -26,23 +38,27 @@ export const App = () => {
     });
   };
 
-  const handleHighScore = (nextScore: number) => {
-    setHighScore((prev) => {
-      if (nextScore <= prev) {
+  const handleHighScore = (gameId: GameId, nextScore: number) => {
+    setHighScores((prev) => {
+      if (nextScore <= prev[gameId]) {
         return prev;
       }
 
-      writeNumber(HIGH_SCORE_KEY, nextScore);
-      return nextScore;
+      const key = GAME_BY_ID[gameId].highScoreKey;
+      writeNumber(key, nextScore);
+      return { ...prev, [gameId]: nextScore };
     });
   };
 
-  if (activeGame === "neon-dodger") {
+  if (activeGame) {
+    const activeGameDefinition = GAME_BY_ID[activeGame];
+    const ActiveGameComponent = activeGameDefinition.component;
+
     return (
-      <NeonDodger
+      <ActiveGameComponent
         onExit={() => setActiveGame(null)}
-        highScore={highScore}
-        onHighScore={handleHighScore}
+        highScore={highScores[activeGame]}
+        onHighScore={(nextScore) => handleHighScore(activeGame, nextScore)}
         soundEnabled={soundEnabled}
         onToggleSound={toggleSound}
       />
@@ -51,8 +67,9 @@ export const App = () => {
 
   return (
     <Hub
-      onStartGame={() => setActiveGame("neon-dodger")}
-      highScore={highScore}
+      games={GAME_DEFINITIONS}
+      highScores={highScores}
+      onStartGame={(gameId) => setActiveGame(gameId)}
       soundEnabled={soundEnabled}
       onToggleSound={toggleSound}
     />
