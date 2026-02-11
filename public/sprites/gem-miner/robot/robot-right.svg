@@ -1,40 +1,78 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
   <defs>
-    <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#8ff2ff"/>
-      <stop offset="1" stop-color="#2a8ea0"/>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d46b4b"/>
+      <stop offset="1" stop-color="#7a1f12"/>
     </linearGradient>
     <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d7e0e6"/>
-      <stop offset="1" stop-color="#7e8a93"/>
+      <stop offset="0" stop-color="#eef5fb"/>
+      <stop offset="1" stop-color="#7f8a93"/>
     </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9ff3ff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#1b7d90" stop-opacity="0.95"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="40%" cy="35%" r="65%">
+      <stop offset="0" stop-color="#8ff2ff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#8ff2ff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
-  <!-- shadow -->
+  <!-- ground shadow -->
   <ellipse cx="32" cy="56" rx="18" ry="6" fill="#000" opacity="0.18"/>
 
-  <!-- body -->
-  <rect x="18" y="18" width="28" height="26" rx="6" fill="url(#body)" stroke="#0d3f47" stroke-width="2"/>
-  <rect x="22" y="22" width="20" height="10" rx="4" fill="#0b1e24" opacity="0.85"/>
-  <circle cx="28" cy="27" r="2" fill="#7cffb2"/>
-  <circle cx="36" cy="27" r="2" fill="#7cffb2"/>
-
-  <!-- head/antenna -->
-  <rect x="24" y="10" width="16" height="10" rx="4" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
-  <path d="M32 10 V6" stroke="#2b333a" stroke-width="2" stroke-linecap="round"/>
-  <circle cx="32" cy="5" r="2.5" fill="#ffcc66" stroke="#6a4b12" stroke-width="1"/>
-
-  <!-- right-facing drill mount -->
-  <rect x="44" y="26" width="10" height="10" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
-  <path d="M54 31 L60 31" stroke="#2b333a" stroke-width="3" stroke-linecap="round"/>
-  <path d="M60 31 l-6 -5 v10 z" fill="#2b333a"/>
+  <!-- subtle glow -->
+  <circle cx="30" cy="28" r="22" fill="url(#glow)"/>
 
   <!-- treads -->
-  <rect x="16" y="44" width="32" height="10" rx="5" fill="#1b232a" stroke="#0a0f13" stroke-width="2"/>
+  <rect x="14" y="44" width="36" height="12" rx="6" fill="#1b232a" stroke="#0a0f13" stroke-width="2"/>
   <g opacity="0.35" fill="#8aa0ad">
-    <rect x="20" y="47" width="4" height="4" rx="1"/>
-    <rect x="28" y="47" width="4" height="4" rx="1"/>
-    <rect x="36" y="47" width="4" height="4" rx="1"/>
-    <rect x="44" y="47" width="4" height="4" rx="1"/>
+    <rect x="18" y="48" width="4" height="4" rx="1"/>
+    <rect x="26" y="48" width="4" height="4" rx="1"/>
+    <rect x="34" y="48" width="4" height="4" rx="1"/>
+    <rect x="42" y="48" width="4" height="4" rx="1"/>
   </g>
+
+  <!-- main hull -->
+  <rect x="16" y="18" width="32" height="26" rx="9" fill="url(#hull)" stroke="#3b1410" stroke-width="2"/>
+
+  <!-- panel line + bolts -->
+  <path d="M20 30h24" stroke="#2a0c07" stroke-width="2" opacity="0.45"/>
+  <g fill="#2a0c07" opacity="0.35">
+    <rect x="20" y="22" width="2" height="2" rx="1"/>
+    <rect x="42" y="22" width="2" height="2" rx="1"/>
+    <rect x="20" y="38" width="2" height="2" rx="1"/>
+    <rect x="42" y="38" width="2" height="2" rx="1"/>
+  </g>
+
+  <!-- retro dome cockpit -->
+  <path d="M26 18c0-6 3.5-10 10-10s10 4 10 10v2H26z"
+        fill="url(#glass)" stroke="#0d3f47" stroke-width="2"/>
+  <!-- dome highlight -->
+  <path d="M30 12c2-2 6-3 10-1" stroke="#ffffff" stroke-width="2" opacity="0.22" stroke-linecap="round"/>
+
+  <!-- CRT face / sensors -->
+  <rect x="22" y="24" width="18" height="10" rx="5" fill="#07151a" opacity="0.9" stroke="#0a0f13" stroke-width="2"/>
+  <circle cx="28" cy="29" r="2" fill="#7cffb2"/>
+  <circle cx="34" cy="29" r="2" fill="#7cffb2"/>
+  <path d="M38 29h0" stroke="#7cffb2" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- antenna -->
+  <path d="M42 12v-6" stroke="#2b333a" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="42" cy="5" r="2.5" fill="#ffcc66" stroke="#6a4b12" stroke-width="1"/>
+
+  <!-- right-side tool mount -->
+  <rect x="46" y="26" width="10" height="10" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
+  <rect x="54" y="29" width="8" height="4" rx="2" fill="#2b333a"/>
+
+  <!-- hazard stripe decal on hull -->
+  <rect x="18" y="36" width="16" height="6" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
+  <g opacity="0.7">
+    <path d="M20 41l4-4" stroke="#ffcc66" stroke-width="3"/>
+    <path d="M24 41l4-4" stroke="#0b1e24" stroke-width="3"/>
+    <path d="M28 41l4-4" stroke="#ffcc66" stroke-width="3"/>
+  </g>
+
+  <!-- tiny ID mark -->
+  <path d="M36 40h6" stroke="#ffffff" stroke-width="2" opacity="0.12" stroke-linecap="round"/>
 </svg>

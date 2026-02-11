@@ -14,7 +14,11 @@ Starter mini-arcade for browser games.
 - Starter sprite pack included at `public/sprites/gem-miner` (replace files in-place to upgrade art)
 - `Gem Miner` uses surface depots (`SELL`, `FUEL`, `RIG`) opened via `Space` or tap
 - Dirt in `Gem Miner` is non-sellable and does not consume cargo space
-- Rock in `Gem Miner` is non-sellable/non-cargo and requires drill power to break
+- `Gem Miner` includes 12 sellable minerals (Coal through Void Crystal)
+- `Gem Miner` has 5 drill-material tiers (`Dirt`, `Rock`, `Stone`, `Aegis Strata`, `Voidbed`)
+- Rock is non-sellable/non-cargo; weak drills can still break it slowly with extra fuel burn
+- `Stone`, `Aegis Strata`, and `Voidbed` require higher drill tiers to mine
+- Upgrade parts (`Cargo`, `Drill`, `Fuel`, `Treads`) use 12 named tiers from `Basic` to `Void Crystal`
 - Depot signboard sprites are included under `public/sprites/gem-miner/depots`
 - Registry-driven game catalog (`src/games/registry.ts`) for easy expansion
 - Shared systems:

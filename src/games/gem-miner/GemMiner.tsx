@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { readJson, readNumber, writeJson, writeNumber } from "../../lib/storage";
 import {
   CORE_SPRITES,
   DEPOT_SPRITE_IDS,
+  GEM_MINER_SPRITE_PATHS,
   TILE_SPRITE_IDS,
   loadGemMinerSprites,
   type GemMinerSprites,
@@ -11,9 +12,13 @@ import type { TileType } from "./types";
 import type { GameProps } from "../types";
 
 type UpgradeId = "cargo" | "drill" | "fuel" | "treads";
-type CargoType = Exclude<TileType, "empty" | "dirt" | "rock">;
+type CargoType = Exclude<
+  TileType,
+  "empty" | "dirt" | "rock" | "stone" | "aegis" | "voidbed"
+>;
 type DepotId = "sell" | "fuel" | "upgrade";
 type DepotPanel = DepotId | null;
+type DrillAim = "forward" | "down";
 
 type ToneType = OscillatorType;
 
@@ -101,34 +106,94 @@ type DepotConfig = {
   accent: string;
 };
 
+type LastSaleNotice = {
+  value: number;
+  units: number;
+  minerals: number;
+  id: number;
+};
+
 type RenderMode = "sprite" | "procedural";
 type SpriteLoadState = "loading" | "ready" | "fallback";
 
 const WORLD_WIDTH = 22;
-const WORLD_HEIGHT = 110;
+const WORLD_HEIGHT = 420;
 const TILE_SIZE = 24;
-const VIEW_ROWS = 18;
+const VIEW_ROWS = 27;
 const CANVAS_WIDTH = WORLD_WIDTH * TILE_SIZE;
 const CANVAS_HEIGHT = VIEW_ROWS * TILE_SIZE;
+const CAMERA_FOCUS_ROW = Math.floor(VIEW_ROWS * 0.5);
+const SURFACE_SKY_ROWS = 8;
+const HUD_GAUGE_SEGMENT_COUNT = 14;
+const HUD_GAUGE_SEGMENT_INDEXES = Array.from(
+  { length: HUD_GAUGE_SEGMENT_COUNT },
+  (_, index) => index,
+);
+const ROBOT_SMOOTHING_MS = 135;
+const CAMERA_SMOOTHING_MS = 210;
 const GEM_MINER_PROGRESS_KEY = "arcade:gem-miner:progress";
 const GEM_MINER_PROFILE_INDEX_KEY = "arcade:gem-miner:profile-index";
-const MAX_UPGRADE_LEVEL = 30;
+const UPGRADE_TIER_NAMES = [
+  "Basic",
+  "Copper",
+  "Silver",
+  "Gold",
+  "Ruby",
+  "Platinum",
+  "Diamond",
+  "Iridium",
+  "Aurelite",
+  "Cryostone",
+  "Helionite",
+  "Void Crystal",
+] as const;
+const UPGRADE_TIER_COLORS = [
+  "#c8b09c",
+  "#e49c66",
+  "#d3dee9",
+  "#f1c96d",
+  "#ef8aa8",
+  "#d7e0e8",
+  "#b8f4ff",
+  "#b9b9f7",
+  "#ffc98f",
+  "#96f7ff",
+  "#ffbc85",
+  "#ecb2ff",
+] as const;
+const MAX_UPGRADE_LEVEL = UPGRADE_TIER_NAMES.length - 1;
 const PROFILE_LABELS = ["A", "B", "C"] as const;
 const AMBIENT_DUST_COUNT = 70;
 const DEPOT_INTERACT_DISTANCE = 1;
 const DEPOT_WIDTH = TILE_SIZE * 2.3;
 const DEPOT_HEIGHT = TILE_SIZE * 1.65;
-const ROCK_DRILL_POWER_REQUIRED = 2;
-const FUEL_UNIT_COST = 3;
+const ROCK_EFFICIENT_DRILL_TIER = 3;
+const STONE_REQUIRED_DRILL_TIER = 6;
+const AEGIS_REQUIRED_DRILL_TIER = 9;
+const VOIDBED_REQUIRED_DRILL_TIER = 12;
+const FUEL_UNIT_COST = 2;
+const EMERGENCY_TOW_RECOVERY_FACTOR = 0.6;
+const UPGRADE_LABELS: Record<UpgradeId, string> = {
+  cargo: "Cargo Rack",
+  drill: "Drill Bit",
+  fuel: "Fuel Tank",
+  treads: "Treads",
+};
+const UPGRADE_ICON_PATHS: Record<UpgradeId, string> = {
+  cargo: "/sprites/gem-miner/ui/upgrade-cargo.svg",
+  drill: "/sprites/gem-miner/ui/upgrade-drill.svg",
+  fuel: "/sprites/gem-miner/ui/upgrade-fuel.svg",
+  treads: "/sprites/gem-miner/ui/upgrade-treads.svg",
+};
 const DEPOTS: readonly DepotConfig[] = [
-  { id: "sell", x: 4, label: "SELL", color: "#2f7da6", accent: "#8fe9ff" },
-  { id: "fuel", x: 11, label: "FUEL", color: "#8d5a2e", accent: "#ffc284" },
+  { id: "sell", x: 4, label: "SELL", color: "#8f4f34", accent: "#ffc09b" },
+  { id: "fuel", x: 11, label: "FUEL", color: "#6d412b", accent: "#ffcf9a" },
   {
     id: "upgrade",
     x: 18,
     label: "RIG",
-    color: "#4a3a87",
-    accent: "#d3b2ff",
+    color: "#60414d",
+    accent: "#f1b2b6",
   },
 ] as const;
 const CARGO_TYPES: readonly CargoType[] = [
@@ -137,16 +202,33 @@ const CARGO_TYPES: readonly CargoType[] = [
   "silver",
   "gold",
   "ruby",
+  "platinum",
+  "diamond",
+  "iridium",
+  "aurelite",
+  "cryostone",
+  "helionite",
+  "voidCrystal",
 ] as const;
 
 const TILE_DEFS: Record<Exclude<TileType, "empty">, TileDefinition> = {
-  dirt: { label: "Dirt", value: 4, hardness: 1, color: "#7a5431" },
-  rock: { label: "Rock", value: 8, hardness: 2, color: "#4a5561" },
+  dirt: { label: "Dirt", value: 0, hardness: 1, color: "#7a5431" },
+  rock: { label: "Rock", value: 0, hardness: 2.2, color: "#4a5561" },
+  stone: { label: "Stone", value: 0, hardness: 3.2, color: "#505a64" },
+  aegis: { label: "Aegis Strata", value: 0, hardness: 4.9, color: "#4f4a6f" },
+  voidbed: { label: "Voidbed", value: 0, hardness: 6.6, color: "#2b2637" },
   coal: { label: "Coal", value: 14, hardness: 1.6, color: "#2f3842" },
   copper: { label: "Copper", value: 24, hardness: 2.5, color: "#b66b34" },
   silver: { label: "Silver", value: 42, hardness: 3, color: "#b7c5d3" },
   gold: { label: "Gold", value: 74, hardness: 3.8, color: "#f0c659" },
   ruby: { label: "Ruby", value: 130, hardness: 4.6, color: "#d85b84" },
+  platinum: { label: "Platinum", value: 190, hardness: 5.2, color: "#bcc7cf" },
+  diamond: { label: "Diamond", value: 260, hardness: 5.9, color: "#9de9ff" },
+  iridium: { label: "Iridium", value: 360, hardness: 6.4, color: "#a0a5d3" },
+  aurelite: { label: "Aurelite", value: 520, hardness: 7, color: "#ffc28d" },
+  cryostone: { label: "Cryostone", value: 740, hardness: 7.6, color: "#8ff2f7" },
+  helionite: { label: "Helionite", value: 1050, hardness: 8.2, color: "#ffae68" },
+  voidCrystal: { label: "Void Crystal", value: 1500, hardness: 9.2, color: "#d994ff" },
 };
 
 const createEmptyCargoManifest = (): CargoManifest => ({
@@ -155,6 +237,13 @@ const createEmptyCargoManifest = (): CargoManifest => ({
   silver: { count: 0, value: 0 },
   gold: { count: 0, value: 0 },
   ruby: { count: 0, value: 0 },
+  platinum: { count: 0, value: 0 },
+  diamond: { count: 0, value: 0 },
+  iridium: { count: 0, value: 0 },
+  aurelite: { count: 0, value: 0 },
+  cryostone: { count: 0, value: 0 },
+  helionite: { count: 0, value: 0 },
+  voidCrystal: { count: 0, value: 0 },
 });
 
 const initialHudState: HudState = {
@@ -166,7 +255,7 @@ const initialHudState: HudState = {
   fuelCapacity: 90,
   depth: 0,
   totalEarned: 0,
-  status: "Touch down and start digging.",
+  status: "Touch down on Mars and start drilling.",
   stranded: false,
   paused: false,
   drillPower: 1,
@@ -199,80 +288,139 @@ const hashNoise = (x: number, y: number, seed = 0): number => {
 const getBiomeVisual = (depth: number): BiomeVisual => {
   if (depth < 12) {
     return {
-      skyTop: "#2a5d7c",
-      skyBottom: "#102437",
-      fog: "rgba(122, 190, 224, 0.18)",
-      tint: "rgba(96, 171, 115, 0.11)",
-      dust: "rgba(188, 228, 255, 0.36)",
+      skyTop: "#9d4f39",
+      skyBottom: "#4a2117",
+      fog: "rgba(255, 166, 121, 0.15)",
+      tint: "rgba(223, 122, 83, 0.12)",
+      dust: "rgba(255, 195, 155, 0.34)",
     };
   }
 
   if (depth < 38) {
     return {
-      skyTop: "#1f3142",
-      skyBottom: "#0a1522",
-      fog: "rgba(134, 162, 191, 0.2)",
-      tint: "rgba(122, 140, 168, 0.09)",
-      dust: "rgba(198, 213, 235, 0.33)",
+      skyTop: "#7f3a2b",
+      skyBottom: "#35160f",
+      fog: "rgba(228, 132, 91, 0.18)",
+      tint: "rgba(186, 90, 63, 0.11)",
+      dust: "rgba(244, 169, 126, 0.32)",
     };
   }
 
   if (depth < 74) {
     return {
-      skyTop: "#291f3e",
-      skyBottom: "#100b1f",
-      fog: "rgba(181, 145, 233, 0.2)",
-      tint: "rgba(130, 98, 185, 0.11)",
-      dust: "rgba(205, 178, 250, 0.35)",
+      skyTop: "#5f281d",
+      skyBottom: "#220d09",
+      fog: "rgba(179, 86, 62, 0.2)",
+      tint: "rgba(142, 62, 44, 0.13)",
+      dust: "rgba(217, 124, 96, 0.33)",
     };
   }
 
   return {
-    skyTop: "#3a1717",
-    skyBottom: "#190909",
-    fog: "rgba(255, 129, 98, 0.23)",
-    tint: "rgba(210, 94, 68, 0.12)",
-    dust: "rgba(255, 168, 132, 0.35)",
+    skyTop: "#43160f",
+    skyBottom: "#160706",
+    fog: "rgba(153, 59, 43, 0.23)",
+    tint: "rgba(110, 39, 29, 0.16)",
+    dust: "rgba(194, 96, 72, 0.34)",
   };
 };
 
 const pickTileByDepth = (depth: number): TileType => {
   const roll = Math.random();
 
-  if (depth < 10) {
-    if (roll < 0.74) return "dirt";
-    if (roll < 0.92) return "rock";
-    return "coal";
-  }
-
-  if (depth < 22) {
-    if (roll < 0.46) return "dirt";
-    if (roll < 0.66) return "rock";
-    if (roll < 0.82) return "coal";
+  if (depth < 18) {
+    if (roll < 0.62) return "dirt";
+    if (roll < 0.82) return "rock";
+    if (roll < 0.94) return "coal";
     return "copper";
   }
 
   if (depth < 40) {
-    if (roll < 0.3) return "dirt";
-    if (roll < 0.53) return "rock";
-    if (roll < 0.67) return "coal";
-    if (roll < 0.88) return "copper";
+    if (roll < 0.36) return "dirt";
+    if (roll < 0.64) return "rock";
+    if (roll < 0.8) return "coal";
+    if (roll < 0.92) return "copper";
     return "silver";
   }
 
-  if (depth < 68) {
-    if (roll < 0.28) return "rock";
-    if (roll < 0.4) return "coal";
-    if (roll < 0.65) return "copper";
-    if (roll < 0.86) return "silver";
+  if (depth < 70) {
+    if (roll < 0.15) return "dirt";
+    if (roll < 0.45) return "rock";
+    if (roll < 0.65) return "stone";
+    if (roll < 0.77) return "coal";
+    if (roll < 0.89) return "copper";
+    if (roll < 0.97) return "silver";
     return "gold";
   }
 
-  if (roll < 0.24) return "rock";
-  if (roll < 0.45) return "copper";
-  if (roll < 0.66) return "silver";
-  if (roll < 0.88) return "gold";
-  return "ruby";
+  if (depth < 105) {
+    if (roll < 0.22) return "rock";
+    if (roll < 0.56) return "stone";
+    if (roll < 0.64) return "coal";
+    if (roll < 0.76) return "copper";
+    if (roll < 0.88) return "silver";
+    if (roll < 0.95) return "gold";
+    if (roll < 0.99) return "ruby";
+    return "platinum";
+  }
+
+  if (depth < 145) {
+    if (roll < 0.34) return "stone";
+    if (roll < 0.58) return "aegis";
+    if (roll < 0.66) return "copper";
+    if (roll < 0.76) return "silver";
+    if (roll < 0.85) return "gold";
+    if (roll < 0.92) return "ruby";
+    if (roll < 0.96) return "platinum";
+    if (roll < 0.99) return "diamond";
+    return "iridium";
+  }
+
+  if (depth < 190) {
+    if (roll < 0.2) return "stone";
+    if (roll < 0.58) return "aegis";
+    if (roll < 0.66) return "silver";
+    if (roll < 0.76) return "gold";
+    if (roll < 0.84) return "ruby";
+    if (roll < 0.9) return "platinum";
+    if (roll < 0.95) return "diamond";
+    if (roll < 0.98) return "iridium";
+    return "aurelite";
+  }
+
+  if (depth < 245) {
+    if (roll < 0.36) return "aegis";
+    if (roll < 0.54) return "voidbed";
+    if (roll < 0.62) return "gold";
+    if (roll < 0.7) return "ruby";
+    if (roll < 0.78) return "platinum";
+    if (roll < 0.85) return "diamond";
+    if (roll < 0.91) return "iridium";
+    if (roll < 0.96) return "aurelite";
+    if (roll < 0.99) return "cryostone";
+    return "helionite";
+  }
+
+  if (depth < 320) {
+    if (roll < 0.2) return "aegis";
+    if (roll < 0.54) return "voidbed";
+    if (roll < 0.61) return "platinum";
+    if (roll < 0.69) return "diamond";
+    if (roll < 0.77) return "iridium";
+    if (roll < 0.86) return "aurelite";
+    if (roll < 0.93) return "cryostone";
+    if (roll < 0.98) return "helionite";
+    return "voidCrystal";
+  }
+
+  if (roll < 0.12) return "aegis";
+  if (roll < 0.45) return "voidbed";
+  if (roll < 0.53) return "diamond";
+  if (roll < 0.63) return "iridium";
+  if (roll < 0.74) return "aurelite";
+  if (roll < 0.86) return "cryostone";
+  if (roll < 0.95) return "helionite";
+  return "voidCrystal";
 };
 
 const createWorld = (): TileType[][] => {
@@ -296,8 +444,17 @@ const createWorld = (): TileType[][] => {
 
 const getCargoCapacity = (level: number): number => 12 + level * 7;
 const getDrillPower = (level: number): number => 1 + level * 0.6;
+const getDrillTier = (level: number): number => level + 1;
 const getFuelCapacity = (level: number): number => 90 + level * 30;
 const getMoveDelayMs = (level: number): number => Math.max(78, 210 - level * 22);
+const getTierName = (level: number): string =>
+  UPGRADE_TIER_NAMES[clamp(level, 0, MAX_UPGRADE_LEVEL)];
+const getTierLabel = (level: number): string =>
+  `T${getDrillTier(level)} ${getTierName(level)}`;
+const isSellableCargoTile = (tile: TileType): tile is CargoType =>
+  CARGO_TYPES.includes(tile as CargoType);
+const getCameraTopY = (robotY: number): number =>
+  clamp(robotY - CAMERA_FOCUS_ROW, -SURFACE_SKY_ROWS, WORLD_HEIGHT - VIEW_ROWS);
 
 const getUpgradeCost = (id: UpgradeId, level: number): number => {
   if (id === "cargo") {
@@ -366,6 +523,10 @@ export const GemMiner = ({
   const worldRef = useRef<TileType[][]>(createWorld());
   const robotXRef = useRef(Math.floor(WORLD_WIDTH / 2));
   const robotYRef = useRef(0);
+  const robotRenderXRef = useRef(robotXRef.current);
+  const robotRenderYRef = useRef(robotYRef.current);
+  const cameraTopYRef = useRef(getCameraTopY(robotYRef.current));
+  const drillAimRef = useRef<DrillAim>("forward");
 
   const moneyRef = useRef(0);
   const cargoValueRef = useRef(0);
@@ -402,6 +563,7 @@ export const GemMiner = ({
   const [renderMode, setRenderMode] = useState<RenderMode>("sprite");
   const [spriteLoadState, setSpriteLoadState] = useState<SpriteLoadState>("loading");
   const [depotPanel, setDepotPanel] = useState<DepotPanel>(null);
+  const [lastSaleNotice, setLastSaleNotice] = useState<LastSaleNotice | null>(null);
 
   soundEnabledRef.current = soundEnabled;
   currentHighScoreRef.current = highScore;
@@ -548,7 +710,7 @@ export const GemMiner = ({
         size: 1.4 + Math.random() * 2.8,
         lifeMs: 260 + Math.random() * 460,
         maxLifeMs: 260 + Math.random() * 460,
-        color: Math.random() > 0.5 ? "#ffd571" : "#8ef7ff",
+        color: Math.random() > 0.5 ? "#ffd18f" : "#ff9b6b",
         gravity: 0.00014 + Math.random() * 0.00009,
         glow: true,
       });
@@ -644,6 +806,10 @@ export const GemMiner = ({
     }
 
     const sold = cargoValueRef.current;
+    const soldUnits = cargoUsedRef.current;
+    const soldMinerals = CARGO_TYPES.reduce((count, type) => {
+      return count + (cargoManifestRef.current[type].count > 0 ? 1 : 0);
+    }, 0);
     moneyRef.current += sold;
     totalEarnedRef.current += sold;
     cargoValueRef.current = 0;
@@ -652,6 +818,12 @@ export const GemMiner = ({
     reportHighScoreIfNeeded();
 
     statusRef.current = `Sold cargo for $${sold}.`;
+    setLastSaleNotice({
+      value: sold,
+      units: soldUnits,
+      minerals: soldMinerals,
+      id: Date.now(),
+    });
     playTone(670, 0.08, "triangle", 0.02);
     spawnSellBurst(sold);
     persistProgress();
@@ -664,7 +836,7 @@ export const GemMiner = ({
     syncHud,
   ]);
 
-  const refuelAtDepot = useCallback(() => {
+  const refuelAtDepot = useCallback((requestedUnits?: number) => {
     if (depotPanelRef.current !== "fuel") {
       statusRef.current = "Open the FUEL depot to refuel.";
       syncHud();
@@ -680,14 +852,18 @@ export const GemMiner = ({
     }
 
     const affordableUnits = Math.floor(moneyRef.current / FUEL_UNIT_COST);
-    if (affordableUnits <= 0) {
+    const maxPurchasableUnits = Math.min(missingFuel, affordableUnits);
+    if (maxPurchasableUnits <= 0) {
       statusRef.current = `Refuel costs $${FUEL_UNIT_COST} per unit.`;
       playTone(180, 0.03, "sawtooth", 0.013);
       syncHud();
       return;
     }
 
-    const unitsBought = Math.min(missingFuel, affordableUnits);
+    const unitsBought =
+      typeof requestedUnits === "number" && Number.isFinite(requestedUnits)
+        ? clamp(Math.floor(requestedUnits), 1, maxPurchasableUnits)
+        : maxPurchasableUnits;
     const fuelCost = unitsBought * FUEL_UNIT_COST;
 
     moneyRef.current -= fuelCost;
@@ -707,6 +883,10 @@ export const GemMiner = ({
       worldRef.current = createWorld();
       robotXRef.current = Math.floor(WORLD_WIDTH / 2);
       robotYRef.current = 0;
+      robotRenderXRef.current = robotXRef.current;
+      robotRenderYRef.current = robotYRef.current;
+      cameraTopYRef.current = getCameraTopY(robotYRef.current);
+      drillAimRef.current = "forward";
       robotFacingRef.current = 1;
       actionCooldownMsRef.current = 0;
       lastFrameTimeRef.current = 0;
@@ -729,10 +909,10 @@ export const GemMiner = ({
         drillLevelRef.current = 0;
         fuelLevelRef.current = 0;
         treadsLevelRef.current = 0;
-        statusRef.current = statusOverride ?? "New operation online. Dig smart.";
+        statusRef.current = statusOverride ?? "Mars operation online. Dig smart.";
         persistProgress();
       } else {
-        statusRef.current = statusOverride ?? "Fresh shaft generated. Progress kept.";
+        statusRef.current = statusOverride ?? "Fresh Martian shaft generated. Progress kept.";
       }
 
       fuelRef.current = getFuelCapacity(fuelLevelRef.current);
@@ -824,6 +1004,12 @@ export const GemMiner = ({
         return null;
       }
 
+      if (dy > 0) {
+        drillAimRef.current = "down";
+      } else if (dx !== 0 || dy < 0) {
+        drillAimRef.current = "forward";
+      }
+
       const nextX = robotXRef.current + dx;
       const nextY = robotYRef.current + dy;
 
@@ -861,7 +1047,7 @@ export const GemMiner = ({
         return moveDelayMs;
       }
 
-      const isSellableOre = targetTile !== "dirt" && targetTile !== "rock";
+      const isSellableOre = isSellableCargoTile(targetTile);
       const capacity = getCargoCapacity(cargoLevelRef.current);
       if (isSellableOre && cargoUsedRef.current >= capacity) {
         statusRef.current = "Cargo full. Return to the surface to sell.";
@@ -872,12 +1058,34 @@ export const GemMiner = ({
 
       const tileDef = TILE_DEFS[targetTile];
       const drillPower = getDrillPower(drillLevelRef.current);
-      if (targetTile === "rock" && drillPower < ROCK_DRILL_POWER_REQUIRED) {
-        statusRef.current = `Rock requires ${ROCK_DRILL_POWER_REQUIRED.toFixed(1)}x drill power.`;
+      const drillTier = getDrillTier(drillLevelRef.current);
+
+      if (targetTile === "stone" && drillTier < STONE_REQUIRED_DRILL_TIER) {
+        statusRef.current = `Stone needs ${getTierLabel(STONE_REQUIRED_DRILL_TIER - 1)} drill hardware.`;
         playTone(165, 0.04, "sawtooth", 0.013);
         syncHud();
         return Math.max(90, moveDelayMs * 0.7);
       }
+
+      if (targetTile === "aegis" && drillTier < AEGIS_REQUIRED_DRILL_TIER) {
+        statusRef.current = `Aegis Strata requires ${getTierLabel(AEGIS_REQUIRED_DRILL_TIER - 1)} drill hardware.`;
+        playTone(155, 0.05, "sawtooth", 0.013);
+        syncHud();
+        return Math.max(100, moveDelayMs * 0.8);
+      }
+
+      if (targetTile === "voidbed" && drillTier < VOIDBED_REQUIRED_DRILL_TIER) {
+        statusRef.current = `Voidbed requires ${getTierLabel(VOIDBED_REQUIRED_DRILL_TIER - 1)} drill hardware.`;
+        playTone(145, 0.05, "sawtooth", 0.013);
+        syncHud();
+        return Math.max(112, moveDelayMs * 0.85);
+      }
+
+      const weakRockTierGap =
+        targetTile === "rock" ? Math.max(0, ROCK_EFFICIENT_DRILL_TIER - drillTier) : 0;
+      const fuelPenaltyMultiplier = 1 + weakRockTierGap * 0.75;
+      const delayPenaltyMultiplier = 1 + weakRockTierGap * 0.9;
+
       const depthMultiplier = 1 + nextY / 95;
       const minedValue = Math.round(tileDef.value * depthMultiplier);
       spawnMiningBurst(targetTile, nextX, nextY);
@@ -885,20 +1093,31 @@ export const GemMiner = ({
       worldRef.current[nextY][nextX] = "empty";
       robotXRef.current = nextX;
       robotYRef.current = nextY;
-      if (targetTile !== "dirt" && targetTile !== "rock") {
+      if (isSellableOre) {
         cargoUsedRef.current += 1;
         cargoValueRef.current += minedValue;
         cargoManifestRef.current[targetTile].count += 1;
         cargoManifestRef.current[targetTile].value += minedValue;
       }
 
-      const fuelCost = Math.max(1, Math.round(tileDef.hardness * 1.15));
+      const fuelCost = Math.max(
+        1,
+        Math.round(tileDef.hardness * 1.15 * fuelPenaltyMultiplier),
+      );
       spendFuel(fuelCost);
 
       statusRef.current = isSellableOre
         ? `Mined ${tileDef.label} (+$${minedValue}).`
+        : targetTile === "voidbed"
+          ? "Bored through voidbed."
+          : targetTile === "aegis"
+            ? "Cut through aegis strata."
+            : targetTile === "stone"
+              ? "Drilled through stone."
         : targetTile === "rock"
-          ? "Drilled through rock."
+          ? weakRockTierGap > 0
+            ? "Drilled weakly through rock (extra fuel burned)."
+            : "Drilled through rock."
           : "Plowed through dirt.";
       handleSurfaceDock();
       playTone(520 + Math.random() * 180, 0.04, "triangle", 0.018);
@@ -906,7 +1125,7 @@ export const GemMiner = ({
 
       const drillDelayMs = Math.max(
         65,
-        Math.round(95 + (tileDef.hardness * 185) / drillPower),
+        Math.round((95 + (tileDef.hardness * 185) / drillPower) * delayPenaltyMultiplier),
       );
       return drillDelayMs;
     },
@@ -926,8 +1145,22 @@ export const GemMiner = ({
     }
 
     setDepotPanel(null);
-    cargoUsedRef.current = Math.floor(cargoUsedRef.current * 0.6);
-    cargoValueRef.current = Math.floor(cargoValueRef.current * 0.6);
+    for (const type of CARGO_TYPES) {
+      cargoManifestRef.current[type].count = Math.floor(
+        cargoManifestRef.current[type].count * EMERGENCY_TOW_RECOVERY_FACTOR,
+      );
+      cargoManifestRef.current[type].value = Math.floor(
+        cargoManifestRef.current[type].value * EMERGENCY_TOW_RECOVERY_FACTOR,
+      );
+    }
+    cargoUsedRef.current = CARGO_TYPES.reduce(
+      (total, type) => total + cargoManifestRef.current[type].count,
+      0,
+    );
+    cargoValueRef.current = CARGO_TYPES.reduce(
+      (total, type) => total + cargoManifestRef.current[type].value,
+      0,
+    );
     robotYRef.current = 0;
     fuelRef.current = getFuelCapacity(fuelLevelRef.current);
     strandedRef.current = false;
@@ -963,8 +1196,15 @@ export const GemMiner = ({
           : id === "drill"
             ? drillLevelRef.current
             : id === "fuel"
-              ? fuelLevelRef.current
+            ? fuelLevelRef.current
               : treadsLevelRef.current;
+
+      if (level >= MAX_UPGRADE_LEVEL) {
+        statusRef.current = `${UPGRADE_LABELS[id]} is already at max tier (${getTierLabel(MAX_UPGRADE_LEVEL)}).`;
+        playTone(220, 0.03, "triangle", 0.012);
+        syncHud();
+        return;
+      }
 
       const cost = getUpgradeCost(id, level);
       if (moneyRef.current < cost) {
@@ -978,17 +1218,17 @@ export const GemMiner = ({
 
       if (id === "cargo") {
         cargoLevelRef.current += 1;
-        statusRef.current = "Cargo racks expanded.";
+        statusRef.current = `Cargo Rack upgraded to ${getTierLabel(cargoLevelRef.current)}.`;
       } else if (id === "drill") {
         drillLevelRef.current += 1;
-        statusRef.current = "Drill bit upgraded.";
+        statusRef.current = `Drill Bit upgraded to ${getTierLabel(drillLevelRef.current)}.`;
       } else if (id === "fuel") {
         fuelLevelRef.current += 1;
         fuelRef.current = getFuelCapacity(fuelLevelRef.current);
-        statusRef.current = "Fuel tank upgraded and topped off.";
+        statusRef.current = `Fuel Tank upgraded to ${getTierLabel(fuelLevelRef.current)} and topped off.`;
       } else {
         treadsLevelRef.current += 1;
-        statusRef.current = "Treads upgraded for faster movement.";
+        statusRef.current = `Treads upgraded to ${getTierLabel(treadsLevelRef.current)}.`;
       }
 
       playTone(700, 0.05, "triangle", 0.02);
@@ -1128,7 +1368,7 @@ export const GemMiner = ({
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * CANVAS_WIDTH;
       const y = ((event.clientY - rect.top) / rect.height) * CANVAS_HEIGHT;
-      const topY = clamp(robotYRef.current - 9, -2, WORLD_HEIGHT - VIEW_ROWS);
+      const topY = cameraTopYRef.current;
       const depotRects = getDepotRects(topY);
 
       for (const depotRect of depotRects) {
@@ -1170,7 +1410,10 @@ export const GemMiner = ({
       const depth = robotYRef.current;
       const biome = getBiomeVisual(depth);
       const timeMs = renderTimeMsRef.current;
-      const topY = clamp(robotYRef.current - 9, -2, WORLD_HEIGHT - VIEW_ROWS);
+      const topY = cameraTopYRef.current;
+      const baseTopY = Math.floor(topY);
+      const topYOffsetPx = (topY - baseTopY) * TILE_SIZE;
+      const visibleRows = VIEW_ROWS + 1;
       const nearbyDepot = getNearbyDepotIdForPosition(robotXRef.current, robotYRef.current);
       const sprites = spritesRef.current;
       const useSprites = renderMode === "sprite" && spriteLoadState === "ready";
@@ -1187,8 +1430,8 @@ export const GemMiner = ({
         const alpha = 0.05 + layer * 0.03;
         context.fillStyle =
           layer % 2 === 0
-            ? `rgba(156, 201, 238, ${alpha})`
-            : `rgba(255, 157, 126, ${alpha * 0.85})`;
+            ? `rgba(236, 157, 120, ${alpha})`
+            : `rgba(165, 73, 54, ${alpha * 0.88})`;
 
         for (let i = 0; i < 14; i += 1) {
           const seed = i * 17 + layer * 29;
@@ -1212,25 +1455,32 @@ export const GemMiner = ({
       context.save();
       context.translate(shakeX, shakeY);
 
-      for (let row = 0; row < VIEW_ROWS; row += 1) {
-        const worldY = topY + row;
+      for (let row = 0; row < visibleRows; row += 1) {
+        const worldY = baseTopY + row;
+        const py = row * TILE_SIZE - topYOffsetPx;
+        if (py < -TILE_SIZE || py > CANVAS_HEIGHT) {
+          continue;
+        }
         const rowBiome = getBiomeVisual(Math.max(0, worldY));
 
         for (let col = 0; col < WORLD_WIDTH; col += 1) {
           const px = col * TILE_SIZE;
-          const py = row * TILE_SIZE;
 
           if (worldY < 0) {
             const skyNoise = hashNoise(col, row, 2);
-            context.fillStyle = skyNoise > 0.83 ? "rgba(171, 227, 255, 0.32)" : "rgba(129, 194, 232, 0.14)";
+            context.fillStyle = skyNoise > 0.83 ? "rgba(255, 199, 161, 0.34)" : "rgba(224, 130, 96, 0.15)";
             context.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
             continue;
           }
 
+          if (worldY >= WORLD_HEIGHT) {
+            continue;
+          }
+
           if (worldY === 0) {
-            context.fillStyle = "#2f4f2f";
+            context.fillStyle = "#6f3a2b";
             context.fillRect(px, py + TILE_SIZE - 5, TILE_SIZE - 1, 4);
-            context.fillStyle = "rgba(129, 186, 107, 0.26)";
+            context.fillStyle = "rgba(206, 120, 88, 0.28)";
             context.fillRect(px, py + TILE_SIZE - 10, TILE_SIZE - 1, 3);
             continue;
           }
@@ -1283,7 +1533,7 @@ export const GemMiner = ({
                 context.drawImage(sprites.sparkle, px + 8, py + 5, 6, 6);
                 context.globalAlpha = 1;
               } else {
-                context.fillStyle = "rgba(255, 252, 220, 0.66)";
+                context.fillStyle = "rgba(255, 231, 186, 0.62)";
                 context.fillRect(px + 10, py + 5, 1, 6);
                 context.fillRect(px + 8, py + 7, 5, 1);
               }
@@ -1329,7 +1579,7 @@ export const GemMiner = ({
           ? "rgba(255, 255, 255, 0.8)"
           : isNearby
             ? depotConfig.accent
-            : "rgba(205, 224, 243, 0.25)";
+            : "rgba(245, 204, 182, 0.24)";
         context.lineWidth = isOpen ? 2 : 1.2;
         context.strokeRect(depotRect.x + 0.5, depotRect.y + 0.5, depotRect.w - 1, depotRect.h - 1);
 
@@ -1344,16 +1594,19 @@ export const GemMiner = ({
         context.textAlign = "left";
 
         if (isNearby && robotYRef.current === 0) {
-          context.fillStyle = "rgba(232, 247, 255, 0.78)";
+          context.fillStyle = "rgba(255, 221, 199, 0.82)";
           context.font = "600 9px 'Space Grotesk', sans-serif";
           context.fillText("SPACE", depotRect.x + depotRect.w / 2 - 14, depotRect.y - 5);
         }
       }
 
-      context.strokeStyle = "rgba(173, 222, 255, 0.07)";
+      context.strokeStyle = "rgba(236, 164, 130, 0.08)";
       context.lineWidth = 1;
-      for (let row = 0; row <= VIEW_ROWS; row += 1) {
-        const y = row * TILE_SIZE + 0.5;
+      for (let row = 0; row <= visibleRows; row += 1) {
+        const y = row * TILE_SIZE - topYOffsetPx + 0.5;
+        if (y < -1 || y > CANVAS_HEIGHT + 1) {
+          continue;
+        }
         context.beginPath();
         context.moveTo(0, y);
         context.lineTo(CANVAS_WIDTH, y);
@@ -1391,61 +1644,79 @@ export const GemMiner = ({
         context.shadowBlur = 0;
       }
 
-      const robotRow = robotYRef.current - topY;
+      const robotRow = robotRenderYRef.current - topY;
       if (robotRow >= 0 && robotRow < VIEW_ROWS) {
-        const robotX = robotXRef.current * TILE_SIZE;
+        const robotX = robotRenderXRef.current * TILE_SIZE;
         const robotY = robotRow * TILE_SIZE;
-        const bob = Math.sin(timeMs * 0.013 + robotXRef.current * 0.7) * 1.1;
+        const bob = Math.sin(timeMs * 0.013 + robotRenderXRef.current * 0.7) * 1.1;
         const facing = robotFacingRef.current;
         const hullY = robotY + 5 + bob;
         const bodySprite = facing === 1 ? sprites.robotRight : sprites.robotLeft;
-        const drillSprite = facing === 1 ? sprites.drillRight : sprites.drillLeft;
+        const drillingDown = drillAimRef.current === "down";
+        const drillSprite = drillingDown
+          ? sprites.drillDown
+          : facing === 1
+            ? sprites.drillRight
+            : sprites.drillLeft;
 
         context.fillStyle = "rgba(6, 13, 22, 0.42)";
         context.fillRect(robotX + 3, hullY + TILE_SIZE - 8, TILE_SIZE - 6, 4);
 
         const exhaustPulse = 0.5 + Math.sin(timeMs * 0.032) * 0.5;
-        context.fillStyle = `rgba(124, 231, 255, ${0.24 + exhaustPulse * 0.26})`;
+        context.fillStyle = `rgba(255, 159, 98, ${0.22 + exhaustPulse * 0.24})`;
         const exhaustX = facing === 1 ? robotX + 2 : robotX + TILE_SIZE - 6;
         context.fillRect(exhaustX, hullY + TILE_SIZE / 2 - 2, 4, 4);
 
         if (useSprites && bodySprite) {
           context.drawImage(bodySprite, robotX, hullY - 1, TILE_SIZE, TILE_SIZE);
         } else {
-          context.fillStyle = "#58f0ff";
+          context.fillStyle = "#d9835d";
           context.fillRect(robotX + 4, hullY, TILE_SIZE - 8, TILE_SIZE - 10);
-          context.fillStyle = "#16314a";
+          context.fillStyle = "#4d2a20";
           context.fillRect(robotX + 8, hullY + 4, TILE_SIZE - 16, 7);
-          context.fillStyle = "rgba(255, 255, 255, 0.28)";
+          context.fillStyle = "rgba(255, 219, 195, 0.32)";
           context.fillRect(robotX + 6, hullY + 2, TILE_SIZE - 13, 2);
         }
 
         const drillOffset = Math.sin(timeMs * 0.06) * 1.8;
         if (useSprites && drillSprite) {
-          const drillX = facing === 1 ? robotX + 6 + drillOffset : robotX - 6 - drillOffset;
-          context.drawImage(drillSprite, drillX, hullY - 1, TILE_SIZE, TILE_SIZE);
-        } else {
-          const drillX = facing === 1 ? robotX + TILE_SIZE - 4 : robotX + 4;
-          context.fillStyle = "#aee9ff";
-          context.beginPath();
-          if (facing === 1) {
-            context.moveTo(drillX + 1, hullY + 8);
-            context.lineTo(drillX + 7 + drillOffset, hullY + 12);
-            context.lineTo(drillX + 1, hullY + 16);
+          if (drillingDown) {
+            const drillX = robotX;
+            const drillY = hullY + 2 + Math.abs(drillOffset) * 0.7;
+            context.drawImage(drillSprite, drillX, drillY, TILE_SIZE, TILE_SIZE);
           } else {
-            context.moveTo(drillX - 1, hullY + 8);
-            context.lineTo(drillX - 7 - drillOffset, hullY + 12);
-            context.lineTo(drillX - 1, hullY + 16);
+            const drillX = facing === 1 ? robotX + 6 + drillOffset : robotX - 6 - drillOffset;
+            context.drawImage(drillSprite, drillX, hullY - 1, TILE_SIZE, TILE_SIZE);
+          }
+        } else {
+          context.fillStyle = "#f0c29c";
+          context.beginPath();
+          if (drillingDown) {
+            const drillCenterX = robotX + TILE_SIZE / 2;
+            context.moveTo(drillCenterX - 4, hullY + TILE_SIZE - 4);
+            context.lineTo(drillCenterX + 4, hullY + TILE_SIZE - 4);
+            context.lineTo(drillCenterX, hullY + TILE_SIZE + 4 + Math.abs(drillOffset));
+          } else {
+            const drillX = facing === 1 ? robotX + TILE_SIZE - 4 : robotX + 4;
+            if (facing === 1) {
+              context.moveTo(drillX + 1, hullY + 8);
+              context.lineTo(drillX + 7 + drillOffset, hullY + 12);
+              context.lineTo(drillX + 1, hullY + 16);
+            } else {
+              context.moveTo(drillX - 1, hullY + 8);
+              context.lineTo(drillX - 7 - drillOffset, hullY + 12);
+              context.lineTo(drillX - 1, hullY + 16);
+            }
           }
           context.closePath();
           context.fill();
         }
 
-        const lampX = facing === 1 ? robotX + TILE_SIZE - 2 : robotX + 2;
-        const lampY = hullY + 12;
+        const lampX = drillingDown ? robotX + TILE_SIZE / 2 : facing === 1 ? robotX + TILE_SIZE - 2 : robotX + 2;
+        const lampY = drillingDown ? hullY + TILE_SIZE - 2 : hullY + 12;
         const lamp = context.createRadialGradient(lampX, lampY, 6, lampX, lampY, 120);
-        lamp.addColorStop(0, "rgba(170, 247, 255, 0.4)");
-        lamp.addColorStop(1, "rgba(170, 247, 255, 0)");
+        lamp.addColorStop(0, "rgba(255, 198, 146, 0.42)");
+        lamp.addColorStop(1, "rgba(255, 198, 146, 0)");
         context.fillStyle = lamp;
         context.fillRect(lampX - 120, lampY - 120, 240, 240);
       }
@@ -1486,7 +1757,7 @@ export const GemMiner = ({
       context.fillStyle = vignette;
       context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      context.fillStyle = "rgba(231, 245, 255, 0.9)";
+      context.fillStyle = "rgba(255, 224, 204, 0.92)";
       context.font = "500 12px 'Space Grotesk', sans-serif";
       context.fillText(`Depth: ${robotYRef.current}m`, 10, 16);
     };
@@ -1537,6 +1808,23 @@ export const GemMiner = ({
           dust.y = -8;
           dust.x = Math.random() * CANVAS_WIDTH;
         }
+      }
+
+      const robotLerpAlpha = 1 - Math.exp(-deltaMs / ROBOT_SMOOTHING_MS);
+      robotRenderXRef.current += (robotXRef.current - robotRenderXRef.current) * robotLerpAlpha;
+      robotRenderYRef.current += (robotYRef.current - robotRenderYRef.current) * robotLerpAlpha;
+      if (Math.abs(robotXRef.current - robotRenderXRef.current) < 0.001) {
+        robotRenderXRef.current = robotXRef.current;
+      }
+      if (Math.abs(robotYRef.current - robotRenderYRef.current) < 0.001) {
+        robotRenderYRef.current = robotYRef.current;
+      }
+
+      const targetTopY = getCameraTopY(robotYRef.current);
+      const cameraLerpAlpha = 1 - Math.exp(-deltaMs / CAMERA_SMOOTHING_MS);
+      cameraTopYRef.current += (targetTopY - cameraTopYRef.current) * cameraLerpAlpha;
+      if (Math.abs(targetTopY - cameraTopYRef.current) < 0.001) {
+        cameraTopYRef.current = targetTopY;
       }
 
       if (!pausedRef.current && !strandedRef.current && depotPanelRef.current === null) {
@@ -1592,6 +1880,20 @@ export const GemMiner = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!lastSaleNotice) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setLastSaleNotice(null);
+    }, 2600);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [lastSaleNotice]);
+
   const cargoUpgradeCost = useMemo(
     () => getUpgradeCost("cargo", hud.cargoLevel),
     [hud.cargoLevel],
@@ -1608,17 +1910,77 @@ export const GemMiner = ({
     () => getUpgradeCost("treads", hud.treadsLevel),
     [hud.treadsLevel],
   );
+  const upgradeRows = useMemo(
+    () => [
+      {
+        id: "cargo" as const,
+        icon: "CRG",
+        iconSrc: UPGRADE_ICON_PATHS.cargo,
+        label: "Cargo Rack",
+        level: hud.cargoLevel,
+        cost: cargoUpgradeCost,
+        statLabel: "+7 cargo slots",
+      },
+      {
+        id: "drill" as const,
+        icon: "DRL",
+        iconSrc: UPGRADE_ICON_PATHS.drill,
+        label: "Drill Bit",
+        level: hud.drillLevel,
+        cost: drillUpgradeCost,
+        statLabel: "+0.6x drill output",
+      },
+      {
+        id: "fuel" as const,
+        icon: "FUE",
+        iconSrc: UPGRADE_ICON_PATHS.fuel,
+        label: "Fuel Tank",
+        level: hud.fuelLevel,
+        cost: fuelUpgradeCost,
+        statLabel: "+30 max fuel",
+      },
+      {
+        id: "treads" as const,
+        icon: "TRD",
+        iconSrc: UPGRADE_ICON_PATHS.treads,
+        label: "Treads",
+        level: hud.treadsLevel,
+        cost: treadsUpgradeCost,
+        statLabel: "faster movement",
+      },
+    ],
+    [
+      cargoUpgradeCost,
+      drillUpgradeCost,
+      fuelUpgradeCost,
+      hud.cargoLevel,
+      hud.drillLevel,
+      hud.fuelLevel,
+      hud.treadsLevel,
+      treadsUpgradeCost,
+    ],
+  );
+  const tierCapCount = MAX_UPGRADE_LEVEL + 1;
   const sellRows = useMemo(
     () =>
       CARGO_TYPES.map((type) => ({
         type,
         label: TILE_DEFS[type].label,
+        color: TILE_DEFS[type].color,
+        spriteSrc: GEM_MINER_SPRITE_PATHS[TILE_SPRITE_IDS[type]],
         unitPrice: TILE_DEFS[type].value,
         qty: hud.cargoManifest[type].count,
         total: hud.cargoManifest[type].value,
+        isActive: hud.cargoManifest[type].count > 0,
       })),
     [hud.cargoManifest],
   );
+  const activeSellRows = useMemo(
+    () => sellRows.filter((row) => row.isActive),
+    [sellRows],
+  );
+  const distinctMineralsCount = activeSellRows.length;
+  const hasSellableCargo = hud.cargoValue > 0;
   const nearbyDepotLabel = useMemo(() => {
     if (!hud.nearbyDepot) {
       return null;
@@ -1644,9 +2006,56 @@ export const GemMiner = ({
       : spriteLoadState === "ready"
         ? "Sprite pack active"
         : "Sprite pack missing files (procedural fallback)";
+  const cargoGaugePercent = Math.round((hud.cargoUsed / Math.max(1, hud.cargoCapacity)) * 100);
+  const fuelGaugePercent = Math.round((hud.fuel / Math.max(1, hud.fuelCapacity)) * 100);
+  const depthPercent = Math.round((hud.depth / Math.max(1, WORLD_HEIGHT - 1)) * 100);
+  const cargoActiveSegments = Math.round(
+    (clamp(cargoGaugePercent, 0, 100) / 100) * HUD_GAUGE_SEGMENT_COUNT,
+  );
+  const fuelActiveSegments = Math.round(
+    (clamp(fuelGaugePercent, 0, 100) / 100) * HUD_GAUGE_SEGMENT_COUNT,
+  );
+  const fuelIsWarning = fuelGaugePercent <= 25;
+  const fuelIsCritical = fuelGaugePercent <= 12;
+  const fuelUnitsToFull = Math.max(0, hud.fuelCapacity - hud.fuel);
+  const fuelFillCost = fuelUnitsToFull * FUEL_UNIT_COST;
+  const affordableFuelUnits = Math.floor(hud.money / FUEL_UNIT_COST);
+  const fuelAffordableNow = Math.min(fuelUnitsToFull, affordableFuelUnits);
+  const fuelProjectedAfterPurchase = hud.fuel + fuelAffordableNow;
+  const fuelProjectedPercent = Math.round(
+    (fuelProjectedAfterPurchase / Math.max(1, hud.fuelCapacity)) * 100,
+  );
+  const fuelTankSegments = Math.round(
+    (clamp(fuelGaugePercent, 0, 100) / 100) * HUD_GAUGE_SEGMENT_COUNT,
+  );
+  const fuelProjectedSegments = Math.round(
+    (clamp(fuelProjectedPercent, 0, 100) / 100) * HUD_GAUGE_SEGMENT_COUNT,
+  );
+  const fuelDepotState: "full" | "insufficient" | "ready" =
+    fuelUnitsToFull <= 0
+      ? "full"
+      : fuelAffordableNow <= 0
+        ? "insufficient"
+        : "ready";
+  const fuelPresetOptions = useMemo(() => {
+    const presets = [
+      { label: "+10", units: 10 },
+      { label: "+25", units: 25 },
+      { label: "Half Tank", units: Math.ceil(fuelUnitsToFull / 2) },
+      { label: "Full Tank", units: fuelUnitsToFull },
+    ];
+    const seen = new Set<number>();
+    return presets.filter((preset) => {
+      if (preset.units <= 0 || seen.has(preset.units)) {
+        return false;
+      }
+      seen.add(preset.units);
+      return true;
+    });
+  }, [fuelUnitsToFull]);
 
   return (
-    <main className="app-shell in-game">
+    <main className="app-shell in-game mars-theme">
       <section className="game-view">
         <div className="toolbar">
           <button type="button" className="ghost" onClick={onExit}>
@@ -1695,42 +2104,105 @@ export const GemMiner = ({
           <p className="profile-note">{spriteStatusLabel}</p>
         </div>
 
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className="game-canvas miner-canvas"
-          aria-label="Gem Miner game canvas"
-        />
-
-        <div className="game-hud">
-          <p>
-            Money: <strong>${hud.money}</strong>
-          </p>
-          <p>
-            Cargo: <strong>{hud.cargoUsed}</strong> / {hud.cargoCapacity}
-          </p>
-          <p>
-            Haul Value: <strong>${hud.cargoValue}</strong>
-          </p>
-          <p>
-            Fuel: <strong>{hud.fuel}</strong> / {hud.fuelCapacity}
-          </p>
-          <p>
-            Drill: <strong>{hud.drillPower.toFixed(1)}x</strong>
-          </p>
-          <p>
-            Speed: <strong>{(1000 / hud.moveDelayMs).toFixed(1)}</strong> steps/s
-          </p>
-          <p>
-            Depth: <strong>{hud.depth}m</strong>
-          </p>
-          <p>
-            Lifetime Sales: <strong>${hud.totalEarned}</strong>
-          </p>
-          <p>
-            High: <strong>${highScore}</strong>
-          </p>
+        <div className="miner-stage">
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            className="game-canvas miner-canvas"
+            aria-label="Gem Miner game canvas"
+          />
+          <div className="miner-hud-overlay" aria-label="In-game HUD">
+            <div className="miner-hud__metric">
+              <p className="miner-hud__label">Money</p>
+              <p className="miner-hud__value">${hud.money}</p>
+            </div>
+            <div className="miner-hud__metric">
+              <p className="miner-hud__label">Depth</p>
+              <p className="miner-hud__value">{hud.depth}m</p>
+            </div>
+            <div className="miner-hud__gauge" aria-label="Cargo gauge">
+              <div className="miner-hud__gauge-head">
+                <p className="miner-hud__label">Cargo</p>
+                <p className="miner-hud__gauge-value">
+                  {hud.cargoUsed} / {hud.cargoCapacity}
+                </p>
+              </div>
+              <div
+                className="miner-hud__gauge-track"
+                role="progressbar"
+                aria-label="Cargo hold usage"
+                aria-valuemin={0}
+                aria-valuemax={hud.cargoCapacity}
+                aria-valuenow={hud.cargoUsed}
+              >
+                <div
+                  className="miner-hud__gauge-fill miner-hud__gauge-fill--cargo"
+                  style={{ width: `${clamp(cargoGaugePercent, 0, 100)}%` }}
+                />
+                <div className="miner-hud__segments" aria-hidden>
+                  {HUD_GAUGE_SEGMENT_INDEXES.map((segmentIndex) => (
+                    <span
+                      key={`cargo-segment-${segmentIndex}`}
+                      className={`miner-hud__segment${
+                        segmentIndex < cargoActiveSegments ? " is-active" : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div
+              className={`miner-hud__gauge${fuelIsWarning ? " is-warning" : ""}${
+                fuelIsCritical ? " is-critical" : ""
+              }`}
+              aria-label="Fuel gauge"
+            >
+              <div className="miner-hud__gauge-head">
+                <p className="miner-hud__label">Fuel</p>
+                <p className="miner-hud__gauge-value">
+                  {hud.fuel} / {hud.fuelCapacity}
+                </p>
+              </div>
+              <div
+                className="miner-hud__gauge-track"
+                role="progressbar"
+                aria-label="Fuel tank level"
+                aria-valuemin={0}
+                aria-valuemax={hud.fuelCapacity}
+                aria-valuenow={hud.fuel}
+              >
+                <div
+                  className="miner-hud__gauge-fill miner-hud__gauge-fill--fuel"
+                  style={{ width: `${clamp(fuelGaugePercent, 0, 100)}%` }}
+                />
+                <div className="miner-hud__segments" aria-hidden>
+                  {HUD_GAUGE_SEGMENT_INDEXES.map((segmentIndex) => (
+                    <span
+                      key={`fuel-segment-${segmentIndex}`}
+                      className={`miner-hud__segment${
+                        segmentIndex < fuelActiveSegments ? " is-active" : ""
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="miner-hud__radar" aria-label="Depth radar strip">
+              <p className="miner-hud__radar-label">Depth Radar</p>
+              <div className="miner-hud__radar-track" role="presentation">
+                <div className="miner-hud__radar-grid" />
+                <span
+                  className="miner-hud__radar-marker"
+                  style={{ left: `${clamp(depthPercent, 0, 100)}%` }}
+                />
+                <span
+                  className="miner-hud__radar-ping"
+                  style={{ left: `${clamp(depthPercent, 0, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <p className="status-line">{hud.status}</p>
@@ -1777,16 +2249,59 @@ export const GemMiner = ({
 
             {depotPanel === "sell" ? (
               <div className="depot-panel__content">
+                <div className="sell-summary-ribbon" aria-label="Sale summary">
+                  <div className="sell-summary-chip">
+                    <p>Cargo Slots Used</p>
+                    <strong>
+                      {hud.cargoUsed} / {hud.cargoCapacity}
+                    </strong>
+                  </div>
+                  <div className="sell-summary-chip">
+                    <p>Distinct Minerals</p>
+                    <strong>{distinctMineralsCount}</strong>
+                  </div>
+                  <div className="sell-summary-chip">
+                    <p>Projected Sale</p>
+                    <strong>${hud.cargoValue}</strong>
+                  </div>
+                </div>
+                {lastSaleNotice ? (
+                  <div key={lastSaleNotice.id} className="sell-last-sale" role="status">
+                    Sold {lastSaleNotice.units} units across {lastSaleNotice.minerals} minerals for $
+                    {lastSaleNotice.value}
+                  </div>
+                ) : null}
                 <div className="sell-table" role="table" aria-label="Cargo sale values">
                   <div className="sell-row sell-row--head" role="row">
-                    <span role="columnheader">Gem</span>
+                    <span role="columnheader">Mineral</span>
                     <span role="columnheader">Price</span>
                     <span role="columnheader">Qty</span>
                     <span role="columnheader">Total</span>
                   </div>
                   {sellRows.map((row) => (
-                    <div key={row.type} className="sell-row" role="row">
-                      <span role="cell">{row.label}</span>
+                    <div
+                      key={row.type}
+                      className={`sell-row${row.isActive ? " is-active" : " is-empty"}`}
+                      role="row"
+                      style={{ "--mineral-color": row.color } as CSSProperties}
+                    >
+                      <span role="cell" className="sell-mineral-cell">
+                        <span
+                          className="sell-mineral-icon"
+                          style={{ backgroundColor: row.color }}
+                          aria-hidden
+                        >
+                          <img
+                            src={row.spriteSrc}
+                            alt=""
+                            loading="lazy"
+                            onError={(event) => {
+                              event.currentTarget.style.display = "none";
+                            }}
+                          />
+                        </span>
+                        <span>{row.label}</span>
+                      </span>
                       <span role="cell">${row.unitPrice}</span>
                       <span role="cell">{row.qty}</span>
                       <span role="cell">${row.total}</span>
@@ -1799,55 +2314,251 @@ export const GemMiner = ({
                     <span role="cell">${hud.cargoValue}</span>
                   </div>
                 </div>
-                <button type="button" className="cta" onClick={sellCargo}>
-                  Sell Cargo
+                <button
+                  type="button"
+                  className={`cta sell-cta${hasSellableCargo ? " is-live" : ""}`}
+                  onClick={sellCargo}
+                  disabled={!hasSellableCargo}
+                >
+                  {hasSellableCargo ? `Sell Cargo · $${hud.cargoValue}` : "No Cargo To Sell"}
                 </button>
               </div>
             ) : null}
 
             {depotPanel === "fuel" ? (
-              <div className="depot-panel__content">
-                <p>
-                  Fuel: <strong>{hud.fuel}</strong> / {hud.fuelCapacity}
-                </p>
-                <p>Top up your tank before deep dives.</p>
-                <button type="button" className="cta" onClick={refuelAtDepot}>
-                  Refuel
+              <div className="depot-panel__content fuel-terminal">
+                <div className="fuel-terminal__header">
+                  <div className="fuel-terminal__heading">
+                    <span className="fuel-terminal__icon" aria-hidden>
+                      FT
+                    </span>
+                    <p>Fuel Terminal</p>
+                  </div>
+                  <span className={`fuel-terminal__state fuel-terminal__state--${fuelDepotState}`}>
+                    {fuelDepotState === "full"
+                      ? "Tank Full"
+                      : fuelDepotState === "insufficient"
+                        ? "Insufficient Funds"
+                        : "Ready To Refuel"}
+                  </span>
+                </div>
+
+                <div className="fuel-terminal__metrics" aria-label="Fuel economy stats">
+                  <div className="fuel-terminal__metric">
+                    <p>Tank</p>
+                    <strong>
+                      {hud.fuel} / {hud.fuelCapacity}
+                    </strong>
+                  </div>
+                  <div className="fuel-terminal__metric">
+                    <p>Unit Price</p>
+                    <strong>${FUEL_UNIT_COST}</strong>
+                  </div>
+                  <div className="fuel-terminal__metric">
+                    <p>Fill Cost</p>
+                    <strong>${fuelFillCost}</strong>
+                  </div>
+                  <div className="fuel-terminal__metric">
+                    <p>Affordable</p>
+                    <strong>{fuelAffordableNow} units</strong>
+                  </div>
+                </div>
+
+                <div className="fuel-terminal__tank">
+                  <div className="fuel-terminal__tank-head">
+                    <p>Fuel Gauge</p>
+                    <span>
+                      {hud.fuel} / {hud.fuelCapacity}
+                    </span>
+                  </div>
+                  <div className="fuel-terminal__tank-track" role="presentation">
+                    <div
+                      className="fuel-terminal__tank-fill"
+                      style={{ width: `${clamp(fuelGaugePercent, 0, 100)}%` }}
+                    />
+                    <div
+                      className="fuel-terminal__tank-projected"
+                      style={{ width: `${clamp(fuelProjectedPercent, 0, 100)}%` }}
+                    />
+                    <div className="fuel-terminal__segments" aria-hidden>
+                      {HUD_GAUGE_SEGMENT_INDEXES.map((segmentIndex) => (
+                        <span
+                          key={`fuel-terminal-segment-${segmentIndex}`}
+                          className={`fuel-terminal__segment${
+                            segmentIndex < fuelTankSegments
+                              ? " is-active"
+                              : segmentIndex < fuelProjectedSegments
+                                ? " is-projected"
+                                : ""
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="fuel-terminal__preview">
+                  <span>
+                    Units to buy: <strong>{fuelAffordableNow}</strong>
+                  </span>
+                  <span>
+                    Cost now: <strong>${fuelAffordableNow * FUEL_UNIT_COST}</strong>
+                  </span>
+                  <span>
+                    Fuel after: <strong>{fuelProjectedAfterPurchase}</strong> / {hud.fuelCapacity}
+                  </span>
+                </div>
+
+                <div className="fuel-terminal__presets">
+                  {fuelPresetOptions.map((preset) => {
+                    const isDisabled = fuelDepotState !== "ready" || preset.units > fuelAffordableNow;
+                    return (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        className="ghost fuel-terminal__preset-btn"
+                        onClick={() => refuelAtDepot(preset.units)}
+                        disabled={isDisabled}
+                      >
+                        {preset.label} · ${preset.units * FUEL_UNIT_COST}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  className="cta fuel-terminal__cta"
+                  onClick={() => refuelAtDepot(fuelAffordableNow)}
+                  disabled={fuelAffordableNow <= 0}
+                >
+                  {fuelAffordableNow > 0
+                    ? `Refuel Max Affordable · $${fuelAffordableNow * FUEL_UNIT_COST}`
+                    : fuelDepotState === "full"
+                      ? "Tank Full"
+                      : "Insufficient Funds"}
                 </button>
               </div>
             ) : null}
 
             {depotPanel === "upgrade" ? (
               <div className="depot-panel__content">
+                <div className="depot-stats-pills" aria-label="Rig telemetry">
+                  <div className="depot-stat-pill">
+                    <p>Drill Output</p>
+                    <strong>{hud.drillPower.toFixed(1)}x</strong>
+                    <span>{getTierLabel(hud.drillLevel)}</span>
+                  </div>
+                  <div className="depot-stat-pill">
+                    <p>Tread Speed</p>
+                    <strong>{(1000 / hud.moveDelayMs).toFixed(1)} steps/s</strong>
+                    <span>{getTierLabel(hud.treadsLevel)}</span>
+                  </div>
+                  <div className="depot-stat-pill">
+                    <p>Best Sale Run</p>
+                    <strong>${highScore}</strong>
+                    <span>All-time record</span>
+                  </div>
+                </div>
+                <div className="rig-tier-progress" aria-label="Upgrade tier progress">
+                  {upgradeRows.map((row) => {
+                    const tierCount = row.level + 1;
+                    const progressPct = (tierCount / tierCapCount) * 100;
+                    return (
+                      <div key={`${row.id}-progress`} className="rig-progress-row">
+                        <p>{row.label}</p>
+                        <div className="rig-progress-track" role="presentation">
+                          <div
+                            className="rig-progress-fill"
+                            style={{ width: `${clamp(progressPct, 0, 100)}%` }}
+                          />
+                        </div>
+                        <span>
+                          T{tierCount}/{tierCapCount}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
                 <div className="upgrade-grid" aria-label="Upgrade shop">
-                  <button
-                    type="button"
-                    className="ghost upgrade-button"
-                    onClick={() => purchaseUpgrade("cargo")}
-                  >
-                    Cargo Rack (+7) · ${cargoUpgradeCost}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost upgrade-button"
-                    onClick={() => purchaseUpgrade("drill")}
-                  >
-                    Drill Bit (+0.6x) · ${drillUpgradeCost}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost upgrade-button"
-                    onClick={() => purchaseUpgrade("fuel")}
-                  >
-                    Fuel Tank (+30) · ${fuelUpgradeCost}
-                  </button>
-                  <button
-                    type="button"
-                    className="ghost upgrade-button"
-                    onClick={() => purchaseUpgrade("treads")}
-                  >
-                    Treads (+speed) · ${treadsUpgradeCost}
-                  </button>
+                  {upgradeRows.map((row) => {
+                    const isMax = row.level >= MAX_UPGRADE_LEVEL;
+                    const currentTier = getTierLabel(row.level);
+                    const nextTier = isMax ? null : getTierLabel(row.level + 1);
+                    const nextTierColor = UPGRADE_TIER_COLORS[Math.min(MAX_UPGRADE_LEVEL, row.level + 1)];
+                    const tintTierColor = UPGRADE_TIER_COLORS[Math.min(MAX_UPGRADE_LEVEL, isMax ? row.level : row.level + 1)];
+                    const shortfall = Math.max(0, row.cost - hud.money);
+                    const canAfford = !isMax && hud.money >= row.cost;
+                    const cardStyle = {
+                      borderColor: isMax ? undefined : `${nextTierColor}66`,
+                      boxShadow: isMax
+                        ? undefined
+                        : `inset 0 0 0 1px ${nextTierColor}22, 0 10px 22px rgba(0, 0, 0, 0.2)`,
+                      "--tier-color": tintTierColor,
+                    } as CSSProperties;
+
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        className={`ghost upgrade-button upgrade-card${
+                          isMax ? " is-max" : canAfford ? " is-affordable" : " is-unaffordable"
+                        }`}
+                        onClick={() => purchaseUpgrade(row.id)}
+                        disabled={isMax}
+                        style={cardStyle}
+                      >
+                        <div className="upgrade-card__head">
+                          <span className="upgrade-card__icon" aria-hidden>
+                            <img
+                              src={row.iconSrc}
+                              alt=""
+                              loading="lazy"
+                              onLoad={(event) => {
+                                const fallback = event.currentTarget.nextElementSibling as
+                                  | HTMLSpanElement
+                                  | null;
+                                if (fallback) {
+                                  fallback.style.display = "none";
+                                }
+                              }}
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                                const fallback = event.currentTarget.nextElementSibling as
+                                  | HTMLSpanElement
+                                  | null;
+                                if (fallback) {
+                                  fallback.style.display = "inline";
+                                }
+                              }}
+                            />
+                            <span className="upgrade-card__icon-fallback">{row.icon}</span>
+                          </span>
+                          <p className="upgrade-card__title">{row.label}</p>
+                        </div>
+                        <p className="upgrade-card__tiers">
+                          {isMax ? `${currentTier} - MAX` : `${currentTier} -> ${nextTier}`}
+                        </p>
+                        <p className="upgrade-card__effect">{row.statLabel}</p>
+                        <div className="upgrade-card__footer">
+                          {isMax ? (
+                            <span className="upgrade-card__state is-max">Maxed Out</span>
+                          ) : (
+                            <>
+                              <strong className="upgrade-card__price">${row.cost}</strong>
+                              <span
+                                className={`upgrade-card__state${
+                                  canAfford ? " is-affordable" : " is-unaffordable"
+                                }`}
+                              >
+                                {canAfford ? "Affordable" : `Need $${shortfall} more`}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ) : null}

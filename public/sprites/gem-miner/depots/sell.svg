@@ -1,34 +1,75 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#69d6ff"/>
-      <stop offset="1" stop-color="#167a9c"/>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3e48"/>
+      <stop offset="1" stop-color="#0f1d24"/>
+    </linearGradient>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d46b4b"/>
+      <stop offset="1" stop-color="#7a1f12"/>
     </linearGradient>
     <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#e7eef3"/>
-      <stop offset="1" stop-color="#7c8790"/>
+      <stop offset="0" stop-color="#eef5fb"/>
+      <stop offset="1" stop-color="#7f8a93"/>
     </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#9ff3ff"/>
+      <stop offset="1" stop-color="#1b7d90"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="35%" r="70%">
+      <stop offset="0" stop-color="#8ff2ff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#8ff2ff" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
-  <!-- tile -->
-  <rect width="64" height="64" rx="8" fill="url(#bg)"/>
-  <rect x="2" y="2" width="60" height="60" rx="7" fill="none" stroke="#0b2f3b" stroke-width="2" opacity="0.55"/>
-  <path d="M8 10h48" stroke="#ffffff" stroke-width="2" opacity="0.18"/>
+  <!-- background tile -->
+  <rect width="64" height="64" rx="8" fill="url(#sky)"/>
+  <rect x="2" y="2" width="60" height="60" rx="7" fill="none" stroke="#06212a" stroke-width="2" opacity="0.6"/>
+  <circle cx="32" cy="22" r="22" fill="url(#glow)"/>
 
-  <!-- kiosk base -->
-  <rect x="14" y="26" width="36" height="26" rx="6" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
-  <rect x="18" y="30" width="28" height="12" rx="4" fill="#0b1e24" opacity="0.88"/>
-  <circle cx="24" cy="36" r="2" fill="#7cffb2"/>
-  <circle cx="32" cy="36" r="2" fill="#7cffb2"/>
-  <circle cx="40" cy="36" r="2" fill="#7cffb2"/>
+  <!-- ground/foundation -->
+  <rect x="6" y="50" width="52" height="10" rx="5" fill="#1b232a" stroke="#0a0f13" stroke-width="2"/>
+  <path d="M8 54h48" stroke="#ffffff" stroke-width="2" opacity="0.10"/>
 
-  <!-- coin + arrow -->
-  <circle cx="22" cy="18" r="7" fill="#ffe37a" stroke="#8b5a0a" stroke-width="2"/>
-  <path d="M22 13v10" stroke="#8b5a0a" stroke-width="2" opacity="0.55"/>
-  <path d="M40 14h10v10H40z" fill="#0b1e24" opacity="0.88" rx="3"/>
-  <path d="M42 19h7" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
-  <path d="M47 16l3 3-3 3" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>
+  <!-- building body -->
+  <rect x="12" y="22" width="40" height="30" rx="8" fill="url(#hull)" stroke="#3b1410" stroke-width="2"/>
+  <path d="M16 36h32" stroke="#2a0c07" stroke-width="2" opacity="0.45"/>
+  <g fill="#2a0c07" opacity="0.35">
+    <rect x="16" y="26" width="2" height="2" rx="1"/>
+    <rect x="46" y="26" width="2" height="2" rx="1"/>
+    <rect x="16" y="46" width="2" height="2" rx="1"/>
+    <rect x="46" y="46" width="2" height="2" rx="1"/>
+  </g>
 
-  <!-- label -->
-  <path d="M12 56h40" stroke="#0b2f3b" stroke-width="4" opacity="0.25" stroke-linecap="round"/>
+  <!-- roof cap -->
+  <rect x="14" y="18" width="36" height="8" rx="4" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
+  <rect x="18" y="20" width="28" height="4" rx="2" fill="url(#accent)" opacity="0.9"/>
+
+  <!-- sign -->
+  <rect x="20" y="8" width="24" height="10" rx="5" fill="#07151a" opacity="0.92" stroke="#0a0f13" stroke-width="2"/>
+  <path d="M24 13h16" stroke="#8ff2ff" stroke-width="2" opacity="0.75" stroke-linecap="round"/>
+  <path d="M26 11h12" stroke="#8ff2ff" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+
+  <!-- window / kiosk slot -->
+  <rect x="18" y="30" width="20" height="10" rx="5" fill="#07151a" opacity="0.9" stroke="#0a0f13" stroke-width="2"/>
+  <circle cx="24" cy="35" r="2" fill="#7cffb2"/>
+  <circle cx="30" cy="35" r="2" fill="#7cffb2"/>
+  <circle cx="36" cy="35" r="2" fill="#7cffb2"/>
+
+  <!-- exchange hatch + coin icon -->
+  <rect x="40" y="30" width="10" height="18" rx="5" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
+  <circle cx="45" cy="39" r="4" fill="#ffe37a" stroke="#8b5a0a" stroke-width="2"/>
+  <path d="M45 36v6" stroke="#8b5a0a" stroke-width="2" opacity="0.55"/>
+
+  <!-- antenna -->
+  <path d="M50 20v-7" stroke="#2b333a" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="50" cy="12" r="2.5" fill="#ffcc66" stroke="#6a4b12" stroke-width="1"/>
+
+  <!-- small hazard decal -->
+  <rect x="14" y="46" width="16" height="6" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2" opacity="0.95"/>
+  <g opacity="0.7">
+    <path d="M16 51l4-4" stroke="#ffcc66" stroke-width="3"/>
+    <path d="M20 51l4-4" stroke="#0b1e24" stroke-width="3"/>
+    <path d="M24 51l4-4" stroke="#ffcc66" stroke-width="3"/>
+  </g>
 </svg>

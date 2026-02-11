@@ -1,0 +1,80 @@
+<!-- drill-down.svg (revised: clearer bit, decal attached, longer arm, integer coords) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef5fb"/>
+      <stop offset="1" stop-color="#7f8a93"/>
+    </linearGradient>
+
+    <!-- Accent channel: change these stops per tier -->
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9ff3ff"/>
+      <stop offset="1" stop-color="#1b7d90"/>
+    </linearGradient>
+
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d46b4b"/>
+      <stop offset="1" stop-color="#7a1f12"/>
+    </linearGradient>
+
+    <!-- tighter, lower glow to read like light spilling into a hole -->
+    <radialGradient id="glow" cx="50%" cy="82%" r="58%">
+      <stop offset="0" stop-color="#8ff2ff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#8ff2ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- subtle downward glow -->
+  <circle cx="32" cy="50" r="18" fill="url(#glow)"/>
+
+  <!-- mount block (top) -->
+  <rect x="22" y="6" width="20" height="18" rx="6" fill="url(#hull)" stroke="#3b1410" stroke-width="2"/>
+  <path d="M26 15h12" stroke="#2a0c07" stroke-width="2" opacity="0.45"/>
+  <g fill="#2a0c07" opacity="0.35">
+    <rect x="26" y="10" width="2" height="2" rx="1"/>
+    <rect x="36" y="10" width="2" height="2" rx="1"/>
+    <rect x="26" y="20" width="2" height="2" rx="1"/>
+    <rect x="36" y="20" width="2" height="2" rx="1"/>
+  </g>
+
+  <!-- status window -->
+  <rect x="25" y="11" width="14" height="6" rx="3" fill="#07151a" opacity="0.9" stroke="#0a0f13" stroke-width="2"/>
+  <circle cx="29" cy="14" r="2" fill="#7cffb2"/>
+  <circle cx="35" cy="14" r="2" fill="#7cffb2"/>
+
+  <!-- hazard decal ATTACHED to mount (no more floating sticker) -->
+  <rect x="24" y="22" width="16" height="6" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2" opacity="0.95"/>
+  <g opacity="0.7">
+    <path d="M26 27l4-4" stroke="#ffcc66" stroke-width="3"/>
+    <path d="M30 27l4-4" stroke="#0b1e24" stroke-width="3"/>
+    <path d="M34 27l4-4" stroke="#ffcc66" stroke-width="3"/>
+  </g>
+
+  <!-- longer piston/arm (matches reach of left/right) -->
+  <rect x="28" y="24" width="8" height="24" rx="4" fill="#1b232a" stroke="#0a0f13" stroke-width="2"/>
+  <rect x="26" y="46" width="12" height="6" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
+
+  <!-- accent stripe on arm (tier color) -->
+  <rect x="30" y="26" width="4" height="18" rx="2" fill="url(#accent)" opacity="0.95"/>
+
+  <!-- coupling ring (moved down accordingly) -->
+  <circle cx="32" cy="54" r="6" fill="#0b1e24" opacity="0.9" stroke="#0a0f13" stroke-width="2"/>
+  <circle cx="32" cy="54" r="3" fill="url(#accent)" opacity="0.9"/>
+
+  <!-- drill head housing (with seam line for consistent casing language) -->
+  <path d="M24 56v4l8 4 8-4v-4z"
+        fill="url(#metal)" stroke="#0a0f13" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M26 58h12" stroke="#2b333a" stroke-width="2" opacity="0.45"/>
+
+  <!-- stepped/auger-ish drill bit (reads as drill when pointing down) -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <!-- main bit outline -->
+    <path d="M28 60l4 4 4-4" fill="none" stroke="#2b333a" stroke-width="4"/>
+    <!-- teeth steps -->
+    <path d="M29 60l3 3 3-3" fill="none" stroke="#2b333a" stroke-width="4" opacity="0.9"/>
+    <path d="M30 60l2 2 2-2" fill="none" stroke="#2b333a" stroke-width="4" opacity="0.8"/>
+
+    <!-- highlight (integer coords only) -->
+    <path d="M30 60l2 3 2-3" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.18"/>
+  </g>
+</svg>

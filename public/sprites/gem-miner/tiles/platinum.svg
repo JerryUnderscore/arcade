@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="ore" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f1f5f8"/>
+      <stop offset="1" stop-color="#9aa4ac"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="6" fill="#3a444c"/>
+  <rect x="2" y="2" width="60" height="60" rx="5" fill="none" stroke="#1c242b" stroke-width="2" opacity="0.55"/>
+  <g fill="url(#ore)">
+    <path d="M14 28 L28 18 L38 26 L24 36 Z"/>
+    <path d="M36 34 L50 30 L46 44 L32 48 Z"/>
+  </g>
+</svg>

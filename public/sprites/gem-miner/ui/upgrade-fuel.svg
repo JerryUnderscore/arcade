@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <defs>
+    <linearGradient id="hull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d46b4b"/>
+      <stop offset="1" stop-color="#7a1f12"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef5fb"/>
+      <stop offset="1" stop-color="#7f8a93"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9ff3ff"/>
+      <stop offset="1" stop-color="#1b7d90"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="60%">
+      <stop offset="0" stop-color="#8ff2ff" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#8ff2ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="6" y="8" width="52" height="48" rx="10" fill="url(#hull)" stroke="#3b1410" stroke-width="2"/>
+  <circle cx="32" cy="34" r="18" fill="url(#glow)"/>
+
+  <!-- tank body -->
+  <rect x="20" y="18" width="24" height="34" rx="10" fill="url(#metal)" stroke="#2b333a" stroke-width="2"/>
+  <!-- tank cap -->
+  <rect x="26" y="14" width="12" height="8" rx="4" fill="#1b232a" stroke="#0a0f13" stroke-width="2"/>
+
+  <!-- fuel window -->
+  <rect x="24" y="26" width="16" height="18" rx="6" fill="#07151a" opacity="0.9" stroke="#0a0f13" stroke-width="2"/>
+  <rect x="26" y="28" width="12" height="14" rx="5" fill="url(#accent)" opacity="0.9"/>
+  <path d="M28 30h8" stroke="#ffffff" stroke-width="2" opacity="0.14" stroke-linecap="round"/>
+  <path d="M28 34h8" stroke="#ffffff" stroke-width="2" opacity="0.10" stroke-linecap="round"/>
+
+  <!-- droplets icon -->
+  <path d="M48 28c2 3 3 4 3 6 0 2-2 4-4 4s-4-2-4-4c0-2 1-3 3-6z"
+        fill="#9ff3ff" opacity="0.65" stroke="#0d3f47" stroke-width="2"/>
+
+  <!-- hazard decal -->
+  <rect x="12" y="46" width="18" height="6" rx="3" fill="url(#metal)" stroke="#2b333a" stroke-width="2" opacity="0.95"/>
+  <g opacity="0.7">
+    <path d="M14 51l4-4" stroke="#ffcc66" stroke-width="3"/>
+    <path d="M18 51l4-4" stroke="#0b1e24" stroke-width="3"/>
+    <path d="M22 51l4-4" stroke="#ffcc66" stroke-width="3"/>
+  </g>
+</svg>
