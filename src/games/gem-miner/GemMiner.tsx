@@ -172,6 +172,9 @@ const STONE_REQUIRED_DRILL_TIER = 6;
 const AEGIS_REQUIRED_DRILL_TIER = 9;
 const VOIDBED_REQUIRED_DRILL_TIER = 12;
 const FUEL_UNIT_COST = 2;
+const MINING_FUEL_BASE_MULTIPLIER = 1.05;
+const DRILL_FUEL_EFFICIENCY_PER_LEVEL = 0.045;
+const DRILL_FUEL_EFFICIENCY_FLOOR = 0.52;
 const EMERGENCY_TOW_RECOVERY_FACTOR = 0.6;
 const UPGRADE_LABELS: Record<UpgradeId, string> = {
   cargo: "Cargo Rack",
@@ -1085,6 +1088,10 @@ export const GemMiner = ({
         targetTile === "rock" ? Math.max(0, ROCK_EFFICIENT_DRILL_TIER - drillTier) : 0;
       const fuelPenaltyMultiplier = 1 + weakRockTierGap * 0.75;
       const delayPenaltyMultiplier = 1 + weakRockTierGap * 0.9;
+      const drillFuelEfficiencyMultiplier = Math.max(
+        DRILL_FUEL_EFFICIENCY_FLOOR,
+        1 - drillLevelRef.current * DRILL_FUEL_EFFICIENCY_PER_LEVEL,
+      );
 
       const depthMultiplier = 1 + nextY / 95;
       const minedValue = Math.round(tileDef.value * depthMultiplier);
@@ -1102,7 +1109,12 @@ export const GemMiner = ({
 
       const fuelCost = Math.max(
         1,
-        Math.round(tileDef.hardness * 1.15 * fuelPenaltyMultiplier),
+        Math.round(
+          tileDef.hardness *
+            MINING_FUEL_BASE_MULTIPLIER *
+            fuelPenaltyMultiplier *
+            drillFuelEfficiencyMultiplier,
+        ),
       );
       spendFuel(fuelCost);
 
@@ -1928,7 +1940,7 @@ export const GemMiner = ({
         label: "Drill Bit",
         level: hud.drillLevel,
         cost: drillUpgradeCost,
-        statLabel: "+0.6x drill output",
+        statLabel: "+0.6x drill output · -4.5% mining fuel/tier",
       },
       {
         id: "fuel" as const,
