@@ -1,10 +1,11 @@
 import type { ComponentType } from "react";
 import { GemMiner } from "./gem-miner/GemMiner";
+import { HexaSweep } from "./hexa-sweep/HexaSweep";
 import { NeonDodger } from "./neon-dodger/NeonDodger";
 import { Tetris } from "./tetris/Tetris";
 import type { GameProps } from "./types";
 
-export type GameId = "neon-dodger" | "tetris" | "gem-miner";
+export type GameId = "neon-dodger" | "tetris" | "gem-miner" | "hexa-sweep";
 
 export type GameDefinition = {
   id: GameId;
@@ -45,6 +46,16 @@ export const GAME_DEFINITIONS: readonly GameDefinition[] = [
     ctaLabel: "Play Gem Miner",
     highScoreKey: "arcade:gem-miner:high-score",
     component: GemMiner,
+  },
+  {
+    id: "hexa-sweep",
+    label: "Game 04",
+    title: "Hexa Sweep",
+    description:
+      "Clear a large hex board by ejecting tiles into open space. No level ladder, just big clean sweeps.",
+    ctaLabel: "Play Hexa Sweep",
+    highScoreKey: "arcade:hexa-sweep:high-score",
+    component: HexaSweep,
   },
 ] as const;
 
