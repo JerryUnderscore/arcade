@@ -172,6 +172,9 @@ const STONE_REQUIRED_DRILL_TIER = 6;
 const AEGIS_REQUIRED_DRILL_TIER = 9;
 const VOIDBED_REQUIRED_DRILL_TIER = 12;
 const FUEL_UNIT_COST = 2;
+const FUEL_BASE_CAPACITY = 90;
+const FUEL_CAPACITY_PER_LEVEL = 70;
+const EMPTY_TUNNEL_MOVE_FUEL_COST = 0;
 const MINING_FUEL_BASE_MULTIPLIER = 1.05;
 const DRILL_FUEL_EFFICIENCY_PER_LEVEL = 0.045;
 const DRILL_FUEL_EFFICIENCY_FLOOR = 0.52;
@@ -448,7 +451,8 @@ const createWorld = (): TileType[][] => {
 const getCargoCapacity = (level: number): number => 12 + level * 7;
 const getDrillPower = (level: number): number => 1 + level * 0.6;
 const getDrillTier = (level: number): number => level + 1;
-const getFuelCapacity = (level: number): number => 90 + level * 30;
+const getFuelCapacity = (level: number): number =>
+  FUEL_BASE_CAPACITY + level * FUEL_CAPACITY_PER_LEVEL;
 const getMoveDelayMs = (level: number): number => Math.max(78, 210 - level * 22);
 const getTierName = (level: number): string =>
   UPGRADE_TIER_NAMES[clamp(level, 0, MAX_UPGRADE_LEVEL)];
@@ -1007,14 +1011,17 @@ export const GemMiner = ({
         return null;
       }
 
+      const currentX = robotXRef.current;
+      const currentY = robotYRef.current;
+
       if (dy > 0) {
         drillAimRef.current = "down";
       } else if (dx !== 0 || dy < 0) {
         drillAimRef.current = "forward";
       }
 
-      const nextX = robotXRef.current + dx;
-      const nextY = robotYRef.current + dy;
+      const nextX = currentX + dx;
+      const nextY = currentY + dy;
 
       if (nextX < 0 || nextX >= WORLD_WIDTH || nextY < 0 || nextY >= WORLD_HEIGHT) {
         return null;
@@ -1041,8 +1048,9 @@ export const GemMiner = ({
       if (targetTile === "empty") {
         robotXRef.current = nextX;
         robotYRef.current = nextY;
-        if (!(robotYRef.current === 0 && nextY === 0)) {
-          spendFuel(1);
+        const movingAlongSurface = currentY === 0 && nextY === 0;
+        if (!movingAlongSurface && EMPTY_TUNNEL_MOVE_FUEL_COST > 0) {
+          spendFuel(EMPTY_TUNNEL_MOVE_FUEL_COST);
         }
         handleSurfaceDock();
         playTone(420, 0.015, "triangle", 0.01);
@@ -1949,7 +1957,7 @@ export const GemMiner = ({
         label: "Fuel Tank",
         level: hud.fuelLevel,
         cost: fuelUpgradeCost,
-        statLabel: "+30 max fuel",
+        statLabel: `+${FUEL_CAPACITY_PER_LEVEL} max fuel`,
       },
       {
         id: "treads" as const,
