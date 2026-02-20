@@ -1,0 +1,43 @@
+Original prompt: Okay, playtest Gem Miner
+
+- Initialized playtest session using develop-web-game skill.
+- Next: run Vite dev server and execute Playwright client action bursts focused on Gem Miner fuel/depth behavior.
+- Playtest blocker: Playwright client failed due to missing local 'playwright' package.
+- Action: installing local playwright dependency to proceed with scripted playtest.
+- Installed local playwright package successfully.
+- Next: inspect Playwright client CLI usage and run Gem Miner action bursts.
+- Additional blocker: skill script resolves dependencies from skill dir.
+- Action: installing playwright in /Users/MannaMedia/.codex/skills/develop-web-game.
+- Starting Vite dev server for Gem Miner playtest.
+- Created Gem Miner action burst: long descend + partial lateral + descend + ascend.
+- Running Playwright client with click-selector for "Play Gem Miner" and capturing artifacts in /tmp/gem-miner-playtest-1.
+- Elevated Playwright run appeared stalled in long action loop; switching to headed mode and shorter burst for reliable artifact capture.
+- Diagnostic proved client completes on short bursts.
+- Running moderate Gem Miner burst (down 220f, up 260f) to evaluate fuel/depth viability and capture screenshot artifacts.
+- Long hold bursts stall in this environment; pivoting to short, repeatable bursts for reliable playtest artifact capture.
+- First Gem Miner screenshot showed no movement (depth remained 0), indicating keyboard focus issue.
+- Retesting with explicit canvas click before movement keys.
+- Verified root cause for stalled key automation: Gem Miner does not expose `window.advanceTime`, so `$WEB_GAME_CLIENT` key holds were near-instant and movement did not register.
+- Built a one-off Playwright harness (`tmp_gem_playtest_custom.mjs`) to run real-time touch-control steps and inspect live HUD values.
+- Max-upgrade playtest run (all upgrade levels set to 11 via localStorage profile seed):
+  - Start: depth 0, fuel 860/860.
+  - Straight-down descent halted at depth 233 due to cargo full (89/89), not fuel depletion.
+  - Fuel at halt: 377/860.
+  - Ascend from depth 233 to surface consumed 0 additional fuel (377 -> 377), consistent with current tunnel-travel fuel rule.
+  - Bottom (depth 419) was not reached in one continuous descent because cargo cap blocked further mining first.
+- Artifact captured: /tmp/gem-miner-playtest-custom-final.png
+- User requested tunnel travel to consume fuel (except surface movement) and asked for target tank sizing for bottom roundtrip with reserve.
+- Updated Gem Miner constants:
+  - `EMPTY_TUNNEL_MOVE_FUEL_COST`: 0 -> 1
+  - `FUEL_CAPACITY_PER_LEVEL`: 70 -> 80
+- New max fuel capacity at tier 12: 970 (was 860).
+- Travel math target:
+  - Bottom depth = 419 tiles, roundtrip travel = 838 tile moves.
+  - With travel cost 1/tile, pure down+up travel now costs 838 fuel.
+  - Max tank reserve after pure roundtrip travel = 970 - 838 = 132 fuel (for bottom mining / detours).
+- Automated playtest after tuning (maxed profile):
+  - Started 970/970 fuel.
+  - Reached depth 229 before cargo full stop.
+  - Returned to surface at 266 fuel, confirming ascent now burns travel fuel.
+  - Upward tunnel movement consumed exactly 229 fuel (495 -> 266), matching 1 fuel per empty-tunnel step.
+- Build check: `npm run build` passed.
