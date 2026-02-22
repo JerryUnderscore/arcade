@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { readJson, readNumber, writeJson, writeNumber } from "../../lib/storage";
 import {
   CORE_SPRITES,
+  DIRT_TILE_VARIANT_IDS,
   DEPOT_SPRITE_IDS,
   GEM_MINER_SPRITE_PATHS,
+  ORE_OVERLAY_VARIANT_IDS,
   TILE_SPRITE_IDS,
   loadGemMinerSprites,
+  type GemMinerSprite,
   type GemMinerSprites,
+  type OverlayOreTileType,
 } from "./sprites";
 import type { TileType } from "./types";
 import type { GameProps } from "../types";
@@ -216,6 +220,7 @@ const CARGO_TYPES: readonly CargoType[] = [
   "helionite",
   "voidCrystal",
 ] as const;
+const ORE_OVERLAY_TILES: readonly OverlayOreTileType[] = ["coal", "copper", "silver", "gold"];
 
 const TILE_DEFS: Record<Exclude<TileType, "empty">, TileDefinition> = {
   dirt: { label: "Dirt", value: 0, hardness: 1, color: "#7a5431" },
@@ -460,6 +465,8 @@ const getTierLabel = (level: number): string =>
   `T${getDrillTier(level)} ${getTierName(level)}`;
 const isSellableCargoTile = (tile: TileType): tile is CargoType =>
   CARGO_TYPES.includes(tile as CargoType);
+const isOverlayOreTile = (tile: TileType): tile is OverlayOreTileType =>
+  ORE_OVERLAY_TILES.includes(tile as OverlayOreTileType);
 const getCameraTopY = (robotY: number): number =>
   clamp(robotY - CAMERA_FOCUS_ROW, -SURFACE_SKY_ROWS, WORLD_HEIGHT - VIEW_ROWS);
 
@@ -588,8 +595,11 @@ export const GemMiner = ({
 
       spritesRef.current = loadedSprites;
 
-      const hasCoreSprites = CORE_SPRITES.every((id) => Boolean(loadedSprites[id]));
-      if (hasCoreSprites) {
+      const hasAnyDirtSprite = DIRT_TILE_VARIANT_IDS.some((id) => Boolean(loadedSprites[id]));
+      const hasCoreSprites = CORE_SPRITES.filter((id) => id !== "dirtTile").every((id) =>
+        Boolean(loadedSprites[id]),
+      );
+      if (hasCoreSprites && hasAnyDirtSprite) {
         setSpriteLoadState("ready");
       } else {
         setSpriteLoadState("fallback");
@@ -1471,6 +1481,29 @@ export const GemMiner = ({
       const shake = cameraShakeRef.current;
       const shakeX = (Math.random() - 0.5) * shake;
       const shakeY = (Math.random() - 0.5) * shake * 0.72;
+      const dirtSprites = DIRT_TILE_VARIANT_IDS.map((id) => sprites[id]).filter(
+        (sprite): sprite is GemMinerSprite => Boolean(sprite),
+      );
+      const overlaySprites = ORE_OVERLAY_TILES.reduce(
+        (all, tile) => ({
+          ...all,
+          [tile]: ORE_OVERLAY_VARIANT_IDS[tile]
+            .map((id) => sprites[id])
+            .filter((sprite): sprite is GemMinerSprite => Boolean(sprite)),
+        }),
+        {} as Record<OverlayOreTileType, GemMinerSprite[]>,
+      );
+      const getVariantSprite = (
+        variants: GemMinerSprite[],
+        x: number,
+        y: number,
+        seed: number,
+      ): GemMinerSprite | null => {
+        if (variants.length === 0) {
+          return null;
+        }
+        return variants[Math.floor(hashNoise(x, y, seed) * variants.length)];
+      };
 
       context.save();
       context.translate(shakeX, shakeY);
@@ -1512,13 +1545,37 @@ export const GemMiner = ({
 
           const tileDef = TILE_DEFS[tile];
           if (useSprites) {
-            const spriteId = TILE_SPRITE_IDS[tile];
-            const tileSprite = sprites[spriteId];
-            if (tileSprite) {
-              context.drawImage(tileSprite, px, py, TILE_SIZE, TILE_SIZE);
+            if (tile === "dirt") {
+              const dirtSprite = getVariantSprite(dirtSprites, col, worldY, 17);
+              if (dirtSprite) {
+                context.drawImage(dirtSprite, px, py, TILE_SIZE, TILE_SIZE);
+              } else {
+                context.fillStyle = tileDef.color;
+                context.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+              }
+            } else if (isOverlayOreTile(tile)) {
+              const dirtSprite = getVariantSprite(dirtSprites, col, worldY, 17);
+              const overlaySprite = getVariantSprite(overlaySprites[tile], col, worldY, 29);
+              if (dirtSprite && overlaySprite) {
+                context.drawImage(dirtSprite, px, py, TILE_SIZE, TILE_SIZE);
+                context.drawImage(overlaySprite, px, py, TILE_SIZE, TILE_SIZE);
+              } else {
+                const tileSprite = sprites[TILE_SPRITE_IDS[tile]];
+                if (tileSprite) {
+                  context.drawImage(tileSprite, px, py, TILE_SIZE, TILE_SIZE);
+                } else {
+                  context.fillStyle = tileDef.color;
+                  context.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+                }
+              }
             } else {
-              context.fillStyle = tileDef.color;
-              context.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+              const tileSprite = sprites[TILE_SPRITE_IDS[tile]];
+              if (tileSprite) {
+                context.drawImage(tileSprite, px, py, TILE_SIZE, TILE_SIZE);
+              } else {
+                context.fillStyle = tileDef.color;
+                context.fillRect(px, py, TILE_SIZE - 1, TILE_SIZE - 1);
+              }
             }
           } else {
             context.fillStyle = tileDef.color;
@@ -1987,7 +2044,9 @@ export const GemMiner = ({
         type,
         label: TILE_DEFS[type].label,
         color: TILE_DEFS[type].color,
-        spriteSrc: GEM_MINER_SPRITE_PATHS[TILE_SPRITE_IDS[type]],
+        spriteSrc: Array.isArray(GEM_MINER_SPRITE_PATHS[TILE_SPRITE_IDS[type]])
+          ? GEM_MINER_SPRITE_PATHS[TILE_SPRITE_IDS[type]][0]
+          : GEM_MINER_SPRITE_PATHS[TILE_SPRITE_IDS[type]],
         unitPrice: TILE_DEFS[type].value,
         qty: hud.cargoManifest[type].count,
         total: hud.cargoManifest[type].value,

@@ -41,3 +41,28 @@ Original prompt: Okay, playtest Gem Miner
   - Returned to surface at 266 fuel, confirming ascent now burns travel fuel.
   - Upward tunnel movement consumed exactly 229 fuel (495 -> 266), matching 1 fuel per empty-tunnel step.
 - Build check: `npm run build` passed.
+- Added support for 4 dirt sprite variants in Gem Miner sprite loader.
+- New dirt sprite IDs: dirtTile, dirtTile2, dirtTile3, dirtTile4.
+- Loader now supports candidate filename patterns for each variant (`dirt-#.png`, `dirt#.png`, `dirt_#.png`) with fallback to legacy `dirt.svg` for primary dirt tile.
+- Dirt rendering now picks a deterministic variant per tile using world coordinates for visual variety.
+- Sprite readiness check now treats dirt as valid if any dirt variant is loaded (instead of requiring only the legacy single dirt file).
+- Build verified with `npm run build`.
+- User added custom PNGs in `public/sprites/gem-miner/tiles`: dirt1-4 and overlay ore variants for coal/copper/silver/gold.
+- Implemented ore-overlay sprite support:
+  - Added overlay sprite IDs/paths for `coal1-3.png`, `copper1-3.png`, `silver1-3.png`, `gold1-2.png` in sprite loader.
+  - Kept existing SVG ore sprites as fallback.
+- Updated tile rendering so `coal|copper|silver|gold` now render as:
+  - randomized dirt variant base + randomized ore overlay variant (deterministic per tile position).
+  - if either layer is unavailable, renderer falls back to existing ore SVG tile sprite.
+- Dirt variation still uses deterministic mix from dirt1-4 PNGs, with fallback to legacy dirt.svg.
+- Build verified with `npm run build`.
+- Visual sanity screenshot captured: `/tmp/gem-miner-overlay-check/shot-0.png`.
+- Implemented automatic white-background removal for ore overlay PNGs at sprite load time.
+- Added matte-based transparency keying:
+  - Samples corner colors to estimate background matte color.
+  - Removes pixels near matte color and soft-fades edge pixels.
+  - Falls back to bright/near-white keying for non-uniform cases.
+- Applied keying only to overlay sprite IDs (coal/copper/silver/gold overlay variants), leaving other sprites untouched.
+- Updated sprite typing to allow processed canvas sprites (`HTMLImageElement | HTMLCanvasElement`).
+- Verified visually after keying update: white boxes are removed and overlays blend with dirt.
+- Visual artifact: `/tmp/gem-miner-overlay-keyed-2/shot-0.png`.
